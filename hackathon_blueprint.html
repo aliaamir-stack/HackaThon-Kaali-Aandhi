@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Mustaqbil 2.0 — Master Blueprint</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --bg2: #0f1318;
+    --bg3: #161b22;
+    --border: #21262d;
+    --accent: #00d4aa;
+    --accent2: #ff6b6b;
+    --accent3: #ffd93d;
+    --accent4: #6bcbff;
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4a5260;
+    --green: #3fb950;
+    --orange: #ff8c00;
+    --purple: #a371f7;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    line-height: 1.6;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0a0c10 0%, #0f1f1a 50%, #0a0c10 100%);
+    border-bottom: 1px solid var(--accent);
+    padding: 40px 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -10%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(ellipse, rgba(0,212,170,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+  }
+  .header h1 span { color: var(--accent); }
+  .header-sub {
+    margin-top: 10px;
+    color: var(--text-muted);
+    font-size: 15px;
+    max-width: 600px;
+  }
+  .badges {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+  .badge-green { color: var(--green); border-color: var(--green); }
+  .badge-accent { color: var(--accent); border-color: var(--accent); }
+  .badge-orange { color: var(--orange); border-color: var(--orange); }
+  .badge-red { color: var(--accent2); border-color: var(--accent2); }
+
+  /* LAYOUT */
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 60px; }
+
+  /* SECTION */
+  .section { margin-bottom: 60px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(0,212,170,0.08);
+    border: 1px solid rgba(0,212,170,0.2);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+  .section h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  /* PROBLEM / SOLUTION CARDS */
+  .ps-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .ps-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .ps-card.problem { border-left: 3px solid var(--accent2); }
+  .ps-card.solution { border-left: 3px solid var(--accent); }
+  .ps-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .ps-card.problem .ps-label { color: var(--accent2); }
+  .ps-card.solution .ps-label { color: var(--accent); }
+  .ps-card p { color: var(--text-muted); font-size: 14px; line-height: 1.7; }
+
+  /* AGENT PIPELINE */
+  .pipeline {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    overflow-x: auto;
+  }
+  .pipeline-flow {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    min-width: 900px;
+  }
+  .agent-box {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+  }
+  .agent-box.entry { border-color: var(--accent4); }
+  .agent-box.orchestrator { border-color: var(--purple); }
+  .agent-box.localize { border-color: var(--accent); }
+  .agent-box.triage { border-color: var(--accent3); }
+  .agent-box.specialist { border-color: var(--orange); }
+  .agent-box.safety { border-color: var(--accent2); }
+  .agent-box.summary { border-color: var(--green); }
+
+  .agent-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+  }
+  .agent-box.entry .agent-label { color: var(--accent4); }
+  .agent-box.orchestrator .agent-label { color: var(--purple); }
+  .agent-box.localize .agent-label { color: var(--accent); }
+  .agent-box.triage .agent-label { color: var(--accent3); }
+  .agent-box.specialist .agent-label { color: var(--orange); }
+  .agent-box.safety .agent-label { color: var(--accent2); }
+  .agent-box.summary .agent-label { color: var(--green); }
+
+  .agent-name { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .agent-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  .agent-model {
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .agent-box.entry .agent-model { background: rgba(107,203,255,0.1); color: var(--accent4); }
+  .agent-box.orchestrator .agent-model { background: rgba(163,113,247,0.1); color: var(--purple); }
+  .agent-box.localize .agent-model { background: rgba(0,212,170,0.1); color: var(--accent); }
+  .agent-box.triage .agent-model { background: rgba(255,217,61,0.1); color: var(--accent3); }
+  .agent-box.specialist .agent-model { background: rgba(255,140,0,0.1); color: var(--orange); }
+  .agent-box.safety .agent-model { background: rgba(255,107,107,0.1); color: var(--accent2); }
+  .agent-box.summary .agent-model { background: rgba(63,185,80,0.1); color: var(--green); }
+
+  .arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--text-dim);
+    font-size: 18px;
+    margin-top: 40px;
+  }
+
+  .safety-override {
+    margin-top: 16px;
+    background: rgba(255,107,107,0.05);
+    border: 1px dashed rgba(255,107,107,0.3);
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .safety-override strong { color: var(--accent2); }
+
+  /* DETAILED AGENT TABLE */
+  .agents-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .agent-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .agent-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .agent-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .agent-card-title { font-size: 15px; font-weight: 700; }
+  .agent-card-subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .agent-detail-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .detail-key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    min-width: 80px;
+    padding-top: 1px;
+  }
+  .detail-val { color: var(--text-muted); line-height: 1.5; }
+
+  /* TECH STACK */
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .stack-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .stack-icon {
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+  .stack-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .stack-tech {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .stack-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #c9d1d9;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+  .code-block .comment { color: #484f58; }
+  .code-block .key { color: var(--accent4); }
+  .code-block .val { color: var(--accent3); }
+  .code-block .str { color: var(--green); }
+  .code-block .kw { color: var(--purple); }
+
+  /* FOLDER STRUCTURE */
+  .folder-tree {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2;
+  }
+  .f-dir { color: var(--accent4); font-weight: 700; }
+  .f-file { color: var(--text-muted); }
+  .f-comment { color: var(--text-dim); font-size: 11px; }
+
+  /* TIMELINE */
+  .timeline { position: relative; }
+  .tl-item {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 20px;
+    margin-bottom: 16px;
+    align-items: start;
+  }
+  .tl-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: right;
+    padding-top: 14px;
+  }
+  .tl-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    position: relative;
+  }
+  .tl-card::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 16px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .tl-card.critical { border-color: rgba(255,107,107,0.4); }
+  .tl-card.critical::before { background: var(--accent2); }
+  .tl-card.freeze { border-color: rgba(163,113,247,0.4); }
+  .tl-card.freeze::before { background: var(--purple); }
+  .tl-phase {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .tl-card.critical .tl-phase { color: var(--accent2); }
+  .tl-card.freeze .tl-phase { color: var(--purple); }
+  .tl-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .tl-tasks { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+
+  /* EVAL CRITERIA */
+  .eval-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .eval-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .eval-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .eval-label { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .eval-tip { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .eval-tip strong { color: var(--accent3); }
+
+  /* CHECKLIST */
+  .checklist { display: flex; flex-direction: column; gap: 8px; }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .check-box {
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* GOLDEN RULES */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .rule-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .rule-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    opacity: 0.3;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .rule-text { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .rule-text strong { color: var(--text); }
+
+  /* DIVIDER */
+  hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+  /* STATE JSON */
+  .state-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ALERT */
+  .alert {
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .alert-warn {
+    background: rgba(255,140,0,0.07);
+    border: 1px solid rgba(255,140,0,0.25);
+    color: var(--orange);
+  }
+  .alert-info {
+    background: rgba(0,212,170,0.06);
+    border: 1px solid rgba(0,212,170,0.2);
+    color: var(--accent);
+  }
+  .alert-icon { font-size: 16px; flex-shrink: 0; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 900px) {
+    .container { padding: 24px; }
+    .header { padding: 28px 24px; }
+    .ps-grid, .agents-grid, .stack-grid, .eval-grid, .rules-grid, .two-col, .state-columns { grid-template-columns: 1fr; }
+    .tl-item { grid-template-columns: 80px 1fr; }
+    .pipeline-flow { min-width: 800px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-tag">▸ AI Mustaqbil 2.0 — Hackathon Blueprint</div>
+  <h1>Rural Health<br><span>Diagnostic Pipeline</span></h1>
+  <p class="header-sub">A voice-first multi-agent diagnostic system for rural community health workers. 6 specialized agents. Zero autonomous diagnosis.</p>
+  <div class="badges">
+    <span class="badge badge-green">✓ Multi-Agent</span>
+    <span class="badge badge-accent">FastAPI + LangGraph</span>
+    <span class="badge badge-accent">React + Vite + TypeScript</span>
+    <span class="badge badge-orange">Whisper ASR</span>
+    <span class="badge badge-red">Safety Override</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- PROBLEM & SOLUTION -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Problem & Solution</h2>
+    </div>
+    <div class="ps-grid">
+      <div class="ps-card problem">
+        <div class="ps-label">⚠ The Problem</div>
+        <p>Patients in rural areas lack access to specialized healthcare. Community health workers have no formal diagnostic training. Language barriers and low literacy rates make it impossible to accurately convey symptoms or translate them into structured clinical data.</p>
+      </div>
+      <div class="ps-card solution">
+        <div class="ps-label">✓ The Solution</div>
+        <p>A voice-first multi-agent diagnostic pipeline. Health workers record native-language voice descriptions. A team of 6 AI agents translates, structures, cross-references, and safety-checks the data before generating a formatted referral note for a human doctor. Never an autonomous diagnosis.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIPELINE VISUAL -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Agent Pipeline — Data Flow</h2>
+    </div>
+    <div class="pipeline">
+      <div class="pipeline-flow">
+        <div class="agent-box entry">
+          <div class="agent-label">Trigger</div>
+          <div class="agent-name">🎙 Audio Upload</div>
+          <div class="agent-desc">Health worker uploads voice file via Streamlit UI</div>
+          <div class="agent-model">WAV / MP3</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="agent-box orchestrator">
+          <div class="agent-label">Orchestrator</div>
+          <div class="agent-name">🧠 LangGraph</div>
+          <div class="agent-desc">Initializes State JSON, routes between agents via conditional logic</div>
+          <div class="agent-model">FastAPI</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="agent-box localize">
+          <div class="agent-label">Agent 1</div>
+          <div class="agent-name">🌐 Localization</div>
+          <div class="agent-desc">Whisper transcribes → Llama translates to clinical English</div>
+          <div class="agent-model">Whisper + Groq</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="agent-box triage">
+          <div class="agent-label">Agent 2</div>
+          <div class="agent-name">📋 Triage</div>
+          <div class="agent-desc">Extracts structured symptoms, flags missing critical context</div>
+          <div class="agent-model">DeepSeek-R1</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="agent-box specialist">
+          <div class="agent-label">Agent 3</div>
+          <div class="agent-name">🔬 Specialist</div>
+          <div class="agent-desc">Cross-references symptoms against WHO/CDC RAG knowledge base</div>
+          <div class="agent-model">DeepSeek-R1 + RAG</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="agent-box summary">
+          <div class="agent-label">Agent 5</div>
+          <div class="agent-name">📄 Summary</div>
+          <div class="agent-desc">Generates referral note for doctor + back-translation to native language</div>
+          <div class="agent-model">DeepSeek-R1</div>
+        </div>
+      </div>
+      <div class="safety-override">
+        <strong>⚡ Safety Agent (Parallel Observer)</strong> — Monitors Triage + Specialist outputs simultaneously. On detection of red-flag conditions or dangerous drug interactions → forcefully interrupts pipeline → routes directly to Summary Agent with <strong>URGENT ESCALATION</strong> flag. Highest priority override in the system.
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENT DETAILS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>Each Agent — Detailed Breakdown</h2>
+    </div>
+    <div class="agents-grid">
+
+      <div class="agent-card">
+        <div class="agent-card-header">
+          <div class="agent-dot" style="background:#6bcbff"></div>
+          <div>
+            <div class="agent-card-title">🎙 Transcription Tool</div>
+            <div class="agent-card-subtitle">TRIGGER / TOOL — Not an LLM agent</div>
+          </div>
+        </div>
+        <div class="agent-detail-row"><div class="detail-key">Model</div><div class="detail-val">Whisper Large-v3 Turbo (via API) or whisper.cpp locally</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Input</div><div class="detail-val">Audio file (WAV/MP3) in regional language</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Output</div><div class="detail-val">Raw text string (may be Urdu/Sindhi/Pashto etc.)</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Role</div><div class="detail-val">Pure audio→text. No reasoning. Just transcription.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Key tip</div><div class="detail-val">Use Groq Whisper API — fastest inference, free tier.</div></div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-card-header">
+          <div class="agent-dot" style="background:#00d4aa"></div>
+          <div>
+            <div class="agent-card-title">🌐 Localization Agent</div>
+            <div class="agent-card-subtitle">AGENT 1 — Custom addition, high impact</div>
+          </div>
+        </div>
+        <div class="agent-detail-row"><div class="detail-key">Model</div><div class="detail-val">Llama-3-8B-Instruct or Mixtral 8x7B via Groq</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Input</div><div class="detail-val">Raw transcribed text in regional language</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Output</div><div class="detail-val">JSON: { "translated_text": "...", "source_language": "..." }</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Role</div><div class="detail-val">Translate to clinical English. At end of pipeline, translate final note BACK to native language for patient.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Key tip</div><div class="detail-val">Prompt: "You are a medical translator. Preserve all symptom details precisely."</div></div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-card-header">
+          <div class="agent-dot" style="background:#ffd93d"></div>
+          <div>
+            <div class="agent-card-title">📋 Triage Agent</div>
+            <div class="agent-card-subtitle">AGENT 2 — Core medical agent</div>
+          </div>
+        </div>
+        <div class="agent-detail-row"><div class="detail-key">Model</div><div class="detail-val">DeepSeek-R1 or GPT-4o via API</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Input</div><div class="detail-val">Clinical English text from Localization Agent</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Output</div><div class="detail-val">Structured JSON: symptoms[], duration, severity, vitals_if_known, missing_info[]</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Role</div><div class="detail-val">Structure the complaint. Identify what information is missing. Do NOT diagnose.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Key tip</div><div class="detail-val">Handle ambiguity gracefully — if symptom is unclear, add to missing_info[] rather than guess.</div></div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-card-header">
+          <div class="agent-dot" style="background:#ff8c00"></div>
+          <div>
+            <div class="agent-card-title">🔬 Specialist Agent</div>
+            <div class="agent-card-subtitle">AGENT 3 — RAG-powered reasoning</div>
+          </div>
+        </div>
+        <div class="agent-detail-row"><div class="detail-key">Model</div><div class="detail-val">DeepSeek-R1 + FAISS/ChromaDB (WHO/CDC guidelines)</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Input</div><div class="detail-val">Structured JSON from Triage Agent</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Output</div><div class="detail-val">JSON: potential_conditions[], recommended_tests[], urgency_level (1-5), evidence_sources[]</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Role</div><div class="detail-val">Cross-reference symptoms against medical knowledge base. Flag potential conditions with evidence. Never diagnose.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Key tip</div><div class="detail-val">RAG retrieval is the key differentiator here — prevents hallucination and impresses judges.</div></div>
+      </div>
+
+      <div class="agent-card" style="border-color: rgba(255,107,107,0.3);">
+        <div class="agent-card-header">
+          <div class="agent-dot" style="background:#ff6b6b"></div>
+          <div>
+            <div class="agent-card-title">🚨 Safety Agent</div>
+            <div class="agent-card-subtitle">AGENT 4 — Parallel observer, system override</div>
+          </div>
+        </div>
+        <div class="agent-detail-row"><div class="detail-key">Model</div><div class="detail-val">DeepSeek-R1 or Claude API</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Input</div><div class="detail-val">Outputs from BOTH Triage AND Specialist agents</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Output</div><div class="detail-val">JSON: is_urgent (bool), red_flags[], drug_interactions[], override_required (bool)</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Role</div><div class="detail-val">Detect: chest pain, stroke symptoms, sepsis, dangerous combos. If override_required=true → skip to Summary with URGENT flag.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Key tip</div><div class="detail-val">This is the most impressive agent for judges — shows safety-first design thinking.</div></div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-card-header">
+          <div class="agent-dot" style="background:#3fb950"></div>
+          <div>
+            <div class="agent-card-title">📄 Summary Agent</div>
+            <div class="agent-card-subtitle">AGENT 5 — Final output generator</div>
+          </div>
+        </div>
+        <div class="agent-detail-row"><div class="detail-key">Model</div><div class="detail-val">DeepSeek-R1 or GPT-4o</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Input</div><div class="detail-val">Specialist output + Safety output (or URGENT flag from Safety override)</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Output</div><div class="detail-val">Formatted referral note (Markdown) in English + native language translation</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Role</div><div class="detail-val">Synthesize everything into a clear doctor-ready referral note. Call Localization Agent to back-translate for patient.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Key tip</div><div class="detail-val">Include: Patient data, symptoms, potential flags, urgency level, recommended next steps.</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STATE JSON -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>The State JSON — Shared Pipeline Object</h2>
+    </div>
+    <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">This single object is initialized by the Orchestrator and passed through every agent. Each agent reads from it and writes its output back into it. Pydantic enforces the schema at every step.</p>
+    <div class="state-columns">
+      <div class="code-block">
+<span class="comment"># state.py — Pydantic Model</span>
+
+<span class="kw">class</span> <span class="key">PipelineState</span>(BaseModel):
+
+  <span class="comment"># Input layer</span>
+  <span class="key">audio_path</span>: <span class="val">str</span>
+  <span class="key">raw_transcript</span>: <span class="val">str</span> = <span class="str">""</span>
+  <span class="key">source_language</span>: <span class="val">str</span> = <span class="str">""</span>
+  <span class="key">clinical_english</span>: <span class="val">str</span> = <span class="str">""</span>
+
+  <span class="comment"># Triage layer</span>
+  <span class="key">symptoms</span>: <span class="val">list[str]</span> = []
+  <span class="key">duration</span>: <span class="val">str</span> = <span class="str">""</span>
+  <span class="key">severity</span>: <span class="val">int</span> = <span class="val">0</span>  <span class="comment"># 1-10</span>
+  <span class="key">missing_info</span>: <span class="val">list[str]</span> = []
+
+  <span class="comment"># Specialist layer</span>
+  <span class="key">potential_conditions</span>: <span class="val">list[str]</span> = []
+  <span class="key">urgency_level</span>: <span class="val">int</span> = <span class="val">1</span>  <span class="comment"># 1-5</span>
+  <span class="key">evidence_sources</span>: <span class="val">list[str]</span> = []
+
+  <span class="comment"># Safety layer</span>
+  <span class="key">is_urgent</span>: <span class="val">bool</span> = <span class="val">False</span>
+  <span class="key">red_flags</span>: <span class="val">list[str]</span> = []
+  <span class="key">override_required</span>: <span class="val">bool</span> = <span class="val">False</span>
+
+  <span class="comment"># Output layer</span>
+  <span class="key">referral_note_en</span>: <span class="val">str</span> = <span class="str">""</span>
+  <span class="key">referral_note_native</span>: <span class="val">str</span> = <span class="str">""</span>
+  <span class="key">pipeline_status</span>: <span class="val">str</span> = <span class="str">"pending"</span>
+      </div>
+
+      <div class="code-block">
+<span class="comment"># graph.py — LangGraph State Machine</span>
+
+<span class="kw">from</span> langgraph.graph <span class="kw">import</span> StateGraph
+
+graph = <span class="key">StateGraph</span>(PipelineState)
+
+<span class="comment"># Add all nodes</span>
+graph.<span class="key">add_node</span>(<span class="str">"transcribe"</span>, transcribe_node)
+graph.<span class="key">add_node</span>(<span class="str">"localize"</span>, localize_node)
+graph.<span class="key">add_node</span>(<span class="str">"triage"</span>, triage_node)
+graph.<span class="key">add_node</span>(<span class="str">"specialist"</span>, specialist_node)
+graph.<span class="key">add_node</span>(<span class="str">"safety"</span>, safety_node)
+graph.<span class="key">add_node</span>(<span class="str">"summary"</span>, summary_node)
+
+<span class="comment"># Linear flow</span>
+graph.<span class="key">add_edge</span>(<span class="str">"transcribe"</span>, <span class="str">"localize"</span>)
+graph.<span class="key">add_edge</span>(<span class="str">"localize"</span>, <span class="str">"triage"</span>)
+graph.<span class="key">add_edge</span>(<span class="str">"triage"</span>, <span class="str">"specialist"</span>)
+graph.<span class="key">add_edge</span>(<span class="str">"specialist"</span>, <span class="str">"safety"</span>)
+
+<span class="comment"># Safety conditional override</span>
+graph.<span class="key">add_conditional_edges</span>(
+  <span class="str">"safety"</span>,
+  route_after_safety,  <span class="comment"># checks override_required</span>
+  {<span class="str">"urgent"</span>: <span class="str">"summary"</span>, <span class="str">"normal"</span>: <span class="str">"summary"</span>}
+)
+graph.<span class="key">set_entry_point</span>(<span class="str">"transcribe"</span>)
+graph.<span class="key">set_finish_point</span>(<span class="str">"summary"</span>)
+      </div>
+    </div>
+  </div>
+
+  <!-- TECH STACK -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>Full Tech Stack</h2>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <div class="stack-icon">⚡</div>
+        <div class="stack-name">Backend Orchestrator</div>
+        <div class="stack-tech">FastAPI + Uvicorn</div>
+        <div class="stack-desc">Async Python server. Handles agent webhooks, manages LangGraph pipeline execution, serves REST endpoints to the React frontend. CORS enabled for Vite dev server on port 5173.</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-icon">🔗</div>
+        <div class="stack-name">Agent Orchestration</div>
+        <div class="stack-tech">LangGraph</div>
+        <div class="stack-desc">Event-driven state machine. Cyclical graph control. Enforces Safety override routing. Pydantic state validation at every node.</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-icon">🖥</div>
+        <div class="stack-name">Frontend / Demo UI</div>
+        <div class="stack-tech">React + Vite + TypeScript</div>
+        <div class="stack-desc">Tailwind CSS + Framer Motion for animations. Live animated agent pipeline visualization, audio uploader, referral note output panel. Built with Claude Code from a detailed prompt.</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-icon">🎙</div>
+        <div class="stack-name">Audio Transcription</div>
+        <div class="stack-tech">Whisper (Groq API)</div>
+        <div class="stack-desc">Use Groq's Whisper endpoint for speed. Alternatively run whisper.cpp locally if offline. Handles Urdu, Sindhi, Pashto natively.</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-icon">🧠</div>
+        <div class="stack-name">Medical Reasoning LLM</div>
+        <div class="stack-tech">DeepSeek-R1 via API</div>
+        <div class="stack-desc">671B reasoning model for Triage, Specialist, Safety, Summary agents. Access via SiliconFlow or Together AI. Free/cheap inference.</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-icon">🌐</div>
+        <div class="stack-name">Translation LLM</div>
+        <div class="stack-tech">Llama-3-8B via Groq</div>
+        <div class="stack-desc">Fast, lightweight instruction model for language translation. Near-instant via Groq's free tier. Handles regional Pakistani languages well.</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-icon">📚</div>
+        <div class="stack-name">Medical Knowledge Base</div>
+        <div class="stack-tech">FAISS + ChromaDB</div>
+        <div class="stack-desc">WHO Primary Healthcare Guidelines + CDC Rural Health PDFs converted to vector store. Specialist Agent queries this to prevent hallucinations.</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-icon">✅</div>
+        <div class="stack-name">Schema Enforcement</div>
+        <div class="stack-tech">Pydantic v2</div>
+        <div class="stack-desc">Strict JSON output validation at every agent handoff. Prevents pipeline crashes from malformed LLM responses.</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-icon">🔑</div>
+        <div class="stack-name">Config & Secrets</div>
+        <div class="stack-tech">python-dotenv</div>
+        <div class="stack-desc">All API keys in .env file. Never hardcode. Load with os.getenv(). Add .env to .gitignore immediately.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOLDER STRUCTURE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>Project Folder Structure</h2>
+    </div>
+    <div class="folder-tree">
+      <div><span class="f-dir">rural-health-pipeline/</span></div>
+      <div>&nbsp;&nbsp;<span class="f-dir">backend/</span> &nbsp;<span class="f-comment">← Python / FastAPI / LangGraph</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">agents/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">localization_agent.py</span> &nbsp;<span class="f-comment">← translate regional → clinical English + back</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">triage_agent.py</span> &nbsp;<span class="f-comment">← structure symptoms into JSON</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">specialist_agent.py</span> &nbsp;<span class="f-comment">← RAG query + condition flagging</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">safety_agent.py</span> &nbsp;<span class="f-comment">← red flag detection + override logic</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">summary_agent.py</span> &nbsp;<span class="f-comment">← referral note generation</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">tools/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">transcriber.py</span> &nbsp;<span class="f-comment">← Whisper audio → text</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">rag_retriever.py</span> &nbsp;<span class="f-comment">← FAISS/ChromaDB query tool</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">pipeline/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">state.py</span> &nbsp;<span class="f-comment">← Pydantic PipelineState model</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">graph.py</span> &nbsp;<span class="f-comment">← LangGraph state machine definition</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">router.py</span> &nbsp;<span class="f-comment">← route_after_safety() conditional logic</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">knowledge_base/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">who_guidelines.pdf</span> &nbsp;<span class="f-comment">← download from WHO website</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">ingest.py</span> &nbsp;<span class="f-comment">← PDF → chunks → embeddings → FAISS index</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">faiss_index/</span> &nbsp;<span class="f-comment">← generated vector store</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">prompts/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">triage_prompt.py</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">specialist_prompt.py</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">safety_prompt.py</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">summary_prompt.py</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">main.py</span> &nbsp;<span class="f-comment">← FastAPI app entry point (run with uvicorn)</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">.env</span> &nbsp;<span class="f-comment">← GROQ_API_KEY, DEEPSEEK_API_KEY etc.</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">requirements.txt</span></div>
+      <div>&nbsp;&nbsp;<span class="f-dir">frontend/</span> &nbsp;<span class="f-comment">← React + Vite + TypeScript (built via Claude Code prompt)</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">src/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">components/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">Header.tsx</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">AudioUpload.tsx</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">AgentPipeline.tsx</span> &nbsp;<span class="f-comment">← hero component, animated pipeline</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">AgentNode.tsx</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">ReferralOutput.tsx</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">UrgencyBanner.tsx</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">types/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">pipeline.ts</span> &nbsp;<span class="f-comment">← AgentStatus, PipelineResult types</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">hooks/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">usePipeline.ts</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-dir">utils/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">mockData.ts</span> &nbsp;<span class="f-comment">← demo mode mock data (normal + urgent cases)</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">api.ts</span> &nbsp;<span class="f-comment">← POST /api/run-pipeline call</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">App.tsx</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">main.tsx</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">index.css</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">vite.config.ts</span> &nbsp;<span class="f-comment">← proxies /api → localhost:8000</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="f-file">package.json</span></div>
+      <div>&nbsp;&nbsp;<span class="f-file">README.md</span></div>
+    </div>
+  </div>
+
+  <!-- BUILD TIMELINE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <h2>24-Hour Build Timeline</h2>
+    </div>
+    <div class="alert alert-warn">
+      <span class="alert-icon">⚠</span>
+      <span>Code freeze at 11:59 PM. Do NOT start new features after Hour 20. The pipeline running imperfectly beats a feature-rich pipeline that crashes.</span>
+    </div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-time">Hr 1–2</div>
+        <div class="tl-card">
+          <div class="tl-phase">Setup</div>
+          <div class="tl-title">Foundation</div>
+          <div class="tl-tasks">Create repo with backend/ and frontend/ folders. Set up .env with all API keys. Get Groq + SiliconFlow/Together API keys. In backend/: install langgraph, fastapi, chromadb, pydantic, openai-whisper. Verify all imports work. Define PipelineState Pydantic model. In frontend/: run <strong>npm create vite@latest</strong>, install tailwindcss, framer-motion, lucide-react.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 3–5</div>
+        <div class="tl-card">
+          <div class="tl-phase">Core Build</div>
+          <div class="tl-title">Transcription + Localization</div>
+          <div class="tl-tasks">Build transcriber.py — Whisper Groq API call. Build localization_agent.py — Llama on Groq. Test with a sample Urdu audio clip. Verify output is clean clinical English JSON. Commit.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 6–8</div>
+        <div class="tl-card critical">
+          <div class="tl-phase">🎯 Critical Checkpoint</div>
+          <div class="tl-title">Triage Agent + RAG Setup</div>
+          <div class="tl-tasks">Build triage_agent.py with Pydantic output enforcement. Download WHO guidelines PDF, run ingest.py to build FAISS index. Build rag_retriever.py tool. Build specialist_agent.py that uses RAG retrieval. By end of Hour 8 you should have a working Transcription → Triage → Specialist chain.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 9–11</div>
+        <div class="tl-card">
+          <div class="tl-phase">Core Build</div>
+          <div class="tl-title">Safety + Summary Agents</div>
+          <div class="tl-tasks">Build safety_agent.py with red-flag detection list (chest pain, stroke signs, severe bleeding, sepsis indicators). Build router.py conditional logic. Build summary_agent.py that formats referral note in Markdown. Wire everything into graph.py LangGraph state machine.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 12–13</div>
+        <div class="tl-card">
+          <div class="tl-phase">Integration</div>
+          <div class="tl-title">FastAPI + Full Pipeline Test</div>
+          <div class="tl-tasks">Build main.py FastAPI app with POST /run-pipeline endpoint. Test full end-to-end run with a sample audio. Fix any JSON parsing or agent handoff errors. Add try/except around every API call.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 14–16</div>
+        <div class="tl-card">
+          <div class="tl-phase">Frontend</div>
+          <div class="tl-title">React UI — Paste Prompt into Claude Code</div>
+          <div class="tl-tasks">Open the frontend/ folder in Claude Code or Cursor. Paste the full frontend prompt (Section 12 of this blueprint) as your first message. Let it build. While it builds, keep tuning backend prompts. Once generated: run <strong>npm run dev</strong>, verify the animated pipeline loads, test the Demo Mode button works, then wire up the real API call to your FastAPI backend.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 17–19</div>
+        <div class="tl-card">
+          <div class="tl-phase">Polish</div>
+          <div class="tl-title">Prompt Tuning + Edge Cases</div>
+          <div class="tl-tasks">Iterate on agent prompts for better output quality. Test with at least 3 different symptom scenarios (mild, moderate, urgent). Verify Safety override triggers correctly on urgent cases. Add logging so pipeline steps are visible in demo.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 20</div>
+        <div class="tl-card freeze">
+          <div class="tl-phase">🔒 Code Freeze</div>
+          <div class="tl-title">Lock the Codebase</div>
+          <div class="tl-tasks">No new features from this point. Fix only showstopper bugs. Write README.md with architecture diagram description, setup instructions, and agent breakdown. Commit everything.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 21–22</div>
+        <div class="tl-card">
+          <div class="tl-phase">Demo Prep</div>
+          <div class="tl-title">Script + Dry Run</div>
+          <div class="tl-tasks">Record a backup video of the demo working. Write your pitch script: Problem (30s) → Architecture (60s) → Live Demo (90s) → Impact + What's next (30s). Practice 3 times. Prepare a fallback scenario if API is slow during live demo.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">Hr 23–24</div>
+        <div class="tl-card">
+          <div class="tl-phase">Final</div>
+          <div class="tl-title">Submit + Rest</div>
+          <div class="tl-tasks">Final submission. Sleep or rest. Be sharp for the demo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EVALUATION CRITERIA -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">08</span>
+      <h2>Evaluation Criteria — How to Score Maximum Points</h2>
+    </div>
+    <div class="eval-grid">
+      <div class="eval-card">
+        <div class="eval-score">★★★</div>
+        <div class="eval-label">Innovation & Creativity</div>
+        <div class="eval-tip">Your angle: <strong>rural Pakistan + voice-first + back-translation</strong>. No other team will have a localization layer that works bidirectionally. This is your unique hook.</div>
+      </div>
+      <div class="eval-card">
+        <div class="eval-score">★★★</div>
+        <div class="eval-label">Technical Depth</div>
+        <div class="eval-tip">Show the <strong>LangGraph state machine</strong>, the Pydantic enforcement, the RAG pipeline, and the Safety override routing. Explain why you chose each tool.</div>
+      </div>
+      <div class="eval-card">
+        <div class="eval-score">★★★</div>
+        <div class="eval-label">Agent Collaboration Quality</div>
+        <div class="eval-tip">Make the <strong>handoffs visible in the UI</strong>. Show each agent activating in sequence. Show the Safety agent interrupting the normal flow on an urgent case.</div>
+      </div>
+      <div class="eval-card">
+        <div class="eval-score">★★★</div>
+        <div class="eval-label">Real-World Impact</div>
+        <div class="eval-tip">This is a <strong>Karachi-based hackathon</strong>. Rural Pakistan context is extremely relevant and will resonate with judges. Lead with the human story.</div>
+      </div>
+      <div class="eval-card">
+        <div class="eval-score">★★★</div>
+        <div class="eval-label">Code Quality & Docs</div>
+        <div class="eval-tip">Clean folder structure, every agent in its own file, <strong>Pydantic models documented</strong>, README with architecture overview. Judges who look at the repo should immediately understand it.</div>
+      </div>
+      <div class="eval-card">
+        <div class="eval-score">★★★</div>
+        <div class="eval-label">Demo & Presentation</div>
+        <div class="eval-tip"><strong>Show the Safety override live.</strong> Use an "urgent" test case (chest pain + shortness of breath) and show how the system escalates it differently. That moment will win the room.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOLDEN RULES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">09</span>
+      <h2>Critical Rules to Follow</h2>
+    </div>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rule-num">01</div>
+        <div class="rule-text"><strong>Never let an agent diagnose.</strong> Every medical agent must include in its system prompt: "You do not issue diagnoses. You flag potential conditions for a human doctor to evaluate." This is the human-in-the-loop requirement and a judging criterion.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">02</div>
+        <div class="rule-text"><strong>Pydantic on every output.</strong> Wrap every LLM response in a try/except and validate against the Pydantic model. If the model returns malformed JSON, retry once with a "correct your JSON format" prompt before failing gracefully.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">03</div>
+        <div class="rule-text"><strong>Build agents one at a time.</strong> Don't wire the full graph until each individual agent works standalone. Test each agent with a hardcoded input before connecting it to the previous agent's output.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">04</div>
+        <div class="rule-text"><strong>RAG before prompt engineering.</strong> Get the FAISS index built in Hours 6–8. A Specialist Agent with RAG grounding is 10x more impressive than one with a long medical system prompt. It's also safer.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">05</div>
+        <div class="rule-text"><strong>Log everything.</strong> Every agent should print/log its input and output during execution. This serves two purposes: debugging during build, and making the agent pipeline visually explainable in the demo.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">06</div>
+        <div class="rule-text"><strong>Prepare two test cases.</strong> A normal case (fever, cough, fatigue) and an urgent case (chest pain, difficulty breathing, sweating). Show both in the demo to demonstrate the Safety override triggering correctly.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK REFERENCE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">10</span>
+      <h2>Quick Reference — APIs & Keys Needed</h2>
+    </div>
+    <div class="alert alert-info">
+      <span class="alert-icon">ℹ</span>
+      <span>Get all API keys set up in the FIRST hour. Running out of credits mid-build is the most avoidable failure mode in hackathons.</span>
+    </div>
+    <div class="two-col">
+      <div class="code-block">
+<span class="comment"># .env file — set this up first</span>
+
+<span class="comment"># Groq — Free, ultra-fast</span>
+<span class="comment"># Use for: Whisper + Llama-3-8B</span>
+<span class="comment"># Get at: console.groq.com</span>
+<span class="key">GROQ_API_KEY</span>=<span class="str">gsk_xxxx</span>
+
+<span class="comment"># SiliconFlow or Together AI</span>
+<span class="comment"># Use for: DeepSeek-R1 (medical agents)</span>
+<span class="comment"># Get at: siliconflow.cn or together.ai</span>
+<span class="key">DEEPSEEK_API_KEY</span>=<span class="str">sk_xxxx</span>
+<span class="key">DEEPSEEK_BASE_URL</span>=<span class="str">https://api.siliconflow.cn/v1</span>
+
+<span class="comment"># Optional fallback</span>
+<span class="comment"># Use: Claude API (you're already using it!)</span>
+<span class="key">ANTHROPIC_API_KEY</span>=<span class="str">sk-ant-xxxx</span>
+      </div>
+      <div class="code-block">
+<span class="comment"># backend/requirements.txt</span>
+<span class="comment"># (Frontend is separate — see frontend/package.json)</span>
+
+fastapi
+uvicorn[standard]
+langgraph
+langchain
+langchain-groq
+langchain-community
+chromadb
+faiss-cpu
+pydantic
+python-dotenv
+openai          <span class="comment"># for DeepSeek via OpenAI SDK</span>
+groq            <span class="comment"># for Whisper + Llama</span>
+pypdf           <span class="comment"># for WHO guideline ingestion</span>
+tiktoken
+python-multipart <span class="comment"># FastAPI file uploads</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW TO USE THIS WITH CLAUDE CODE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">11</span>
+      <h2>How to Use This Blueprint with Claude Code / Cursor</h2>
+    </div>
+    <div class="alert alert-info">
+      <span class="alert-icon">ℹ</span>
+      <span><strong>Short answer:</strong> You only need the prompt (Section 12). The blueprint is YOUR reference — not Claude Code's. Paste the prompt alone into Claude Code. That's all it needs.</span>
+    </div>
+    <div class="agents-grid">
+      <div class="agent-card">
+        <div class="agent-card-header">
+          <div class="agent-dot" style="background:#00d4aa"></div>
+          <div>
+            <div class="agent-card-title">For the Backend (FastAPI + LangGraph)</div>
+            <div class="agent-card-subtitle">Open backend/ in Claude Code or Cursor</div>
+          </div>
+        </div>
+        <div class="agent-detail-row"><div class="detail-key">Step 1</div><div class="detail-val">Open the backend/ folder in Claude Code / Cursor as the workspace root</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Step 2</div><div class="detail-val">Start a new chat. Describe the full system in your first message — you can paste the architecture section from this blueprint as context. Say: "Build this FastAPI + LangGraph multi-agent pipeline according to this architecture: [paste Section 03 + 04]"</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Step 3</div><div class="detail-val">Ask it to build one agent file at a time — don't ask for everything at once. Start with state.py, then transcriber.py, then each agent in order.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Key rule</div><div class="detail-val">Give Claude Code the Pydantic state model (from Section 04) upfront — it will keep all agents consistent with the same schema.</div></div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-card-header">
+          <div class="agent-dot" style="background:#a371f7"></div>
+          <div>
+            <div class="agent-card-title">For the Frontend (React + Vite)</div>
+            <div class="agent-card-subtitle">Open frontend/ in a separate Claude Code / Cursor window</div>
+          </div>
+        </div>
+        <div class="agent-detail-row"><div class="detail-key">Step 1</div><div class="detail-val">Open the frontend/ folder as the workspace root (separate from backend)</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Step 2</div><div class="detail-val"><strong>Paste Section 12 (the full frontend prompt) as your very first message.</strong> Nothing else. The prompt is self-contained — it has everything Claude Code needs.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Step 3</div><div class="detail-val">Let it build fully before interrupting. After it finishes, run <strong>npm run dev</strong> and test the Demo Mode button first before touching API integration.</div></div>
+        <div class="agent-detail-row"><div class="detail-key">Key rule</div><div class="detail-val">Do NOT paste the whole blueprint into Claude Code — it's too much noise. The frontend prompt alone is precisely scoped. More context ≠ better output.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRONTEND CLAUDE CODE PROMPT -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">12</span>
+      <h2>Frontend Build Prompt — Paste into Claude Code</h2>
+    </div>
+    <div class="alert alert-warn">
+      <span class="alert-icon">⚠</span>
+      <span>Copy this entire block and paste it as your first (and only) message when opening the frontend/ folder in Claude Code or Cursor. Do not split it up.</span>
+    </div>
+    <div class="code-block" style="white-space: pre-wrap; font-size: 11px; line-height: 1.7; color: #c9d1d9;">
+Build a production-grade React + Vite + TypeScript frontend for a multi-agent rural healthcare diagnostic pipeline. This is for an AI hackathon demo — it needs to be visually stunning, medically professional, and show the agent pipeline animating live.
+
+<span class="comment">## TECH STACK</span>
+- React 18 + TypeScript + Vite
+- Tailwind CSS (for layout/spacing)
+- Framer Motion (for animations)
+- Lucide React (icons)
+- NO component libraries like shadcn or MUI — custom everything
+
+<span class="comment">## AESTHETIC DIRECTION</span>
+- Dark theme. Background: #080c10 (near black with subtle blue tint)
+- Primary accent: #00d4aa (teal/mint — clinical and modern)
+- Danger/urgent accent: #ff4d4d (red — for safety override states)
+- Warning: #f59e0b (amber)
+- Font: "IBM Plex Mono" for labels/code, "Inter" for body — import from Google Fonts
+- Vibe: medical-grade control room meets AI terminal. Serious. Precise.
+- Subtle dot grid background pattern using CSS radial-gradient, opacity 0.15
+- Cards: glass morphism — bg rgba(255,255,255,0.03), border rgba(255,255,255,0.08)
+- All borders 1px. No border-radius above 8px. Sharp and clinical.
+
+<span class="comment">## PAGE LAYOUT (single page)</span>
+
+<span class="comment">### HEADER</span>
+- Left: pulse/waveform SVG icon + "MediAgent" in IBM Plex Mono
+- Center: "Rural Health Diagnostic Pipeline" / "Multi-Agent AI System"
+- Right: status pill — "System Ready" (green dot) / "Pipeline Running" (amber) / "Complete" (teal)
+- Thin teal bottom border
+
+<span class="comment">### MAIN AREA (55/45 two-column split)</span>
+
+LEFT COLUMN — Input + Pipeline:
+
+Audio Upload Zone:
+- Large drag-and-drop zone, dashed teal border
+- Microphone icon, pulses on hover
+- On file selected: show filename + 20-bar waveform animation (CSS keyframes, staggered)
+- Language selector: Urdu | Sindhi | Pashto | Punjabi | Other
+- "Run Diagnostic Pipeline" button — full width, teal, IBM Plex Mono, shimmer on hover
+
+Live Agent Pipeline (HERO COMPONENT — most important):
+Show 6 stages as vertical connected nodes:
+  [🎙 Transcription] → [🌐 Localization] → [📋 Triage] → [🔬 Specialist]
+  Safety Agent [🚨] branches off to the RIGHT of Specialist using absolute positioning
+  Both Specialist and Safety converge down to [📄 Summary]
+
+Each node card has:
+- Icon + name + one-line role
+- Status: idle (dim) / active (teal glow pulse) / complete (teal fill + checkmark) / error (red)
+- When active: skeleton shimmer + "Processing..." in mono font
+- When complete: result preview text with typewriter effect (character by character)
+- Safety node: sits to the right, connected by dashed SVG line. On URGENT: turns red, rapid pulse, red animated line draws to Summary
+
+Connecting lines: thin SVG lines using stroke-dasharray animation that draws when next node activates
+
+RIGHT COLUMN — Output:
+
+Referral Note Panel (hidden until complete):
+- Tab switcher: "English Report" | "اردو رپورٹ"
+- Sections: PATIENT COMPLAINT / POTENTIAL CONDITIONS (badge tags) / URGENCY LEVEL (5-dot visual) / RED FLAGS (red alert boxes) / RECOMMENDED ACTIONS / DOCTOR'S NOTE
+- Footer: "⚠ This report is for physician review only. Not an autonomous diagnosis."
+
+Urgency Override Banner (hidden by default):
+- Full-width red banner slides down when Safety triggers
+- "🚨 URGENT ESCALATION — Immediate medical attention required"
+- Pulsing red border on entire right column
+
+<span class="comment">### BOTTOM BAR</span>
+"6 Agents Active | LangGraph Orchestration | RAG-Powered" left, "AI Mustaqbil 2.0 Hackathon" right
+
+<span class="comment">## KEY ANIMATIONS</span>
+1. Pipeline nodes light up sequentially — Framer Motion with delay: index * 0.3
+2. Active node: CSS box-shadow keyframe pulsing teal glow every 1.5s
+3. SVG lines: stroke-dasharray + stroke-dashoffset animation draws line on activation
+4. Safety override: rapid red pulse (0.5s), then red line animates to Summary
+5. Upload waveform: 20 bars, staggered CSS animation-delay
+6. Referral note: slide up + fade in with Framer Motion on complete
+7. Button shimmer: moving gradient via CSS ::after on hover
+8. Typewriter effect: character-by-character reveal using a custom hook
+
+<span class="comment">## TYPE DEFINITIONS (pipeline.ts)</span>
+type AgentStatus = 'idle' | 'active' | 'complete' | 'error';
+interface AgentState { transcription: AgentStatus; localization: AgentStatus; triage: AgentStatus; specialist: AgentStatus; safety: AgentStatus; summary: AgentStatus; }
+interface PipelineResult { rawTranscript: string; clinicalEnglish: string; symptoms: string[]; potentialConditions: string[]; urgencyLevel: number; redFlags: string[]; referralNoteEn: string; referralNoteNative: string; isUrgent: boolean; sourceLanguage: string; }
+
+<span class="comment">## API INTEGRATION</span>
+- POST /api/run-pipeline with FormData (audio file + language)
+- Backend: FastAPI on localhost:8000
+- While waiting, simulate agent progress with setTimeout:
+  0s → transcription active | 3s → localization | 6s → triage | 10s → specialist + safety (parallel) | 15s → summary | 18s → complete
+- When real response arrives, map to PipelineResult and display
+- Add "Demo Mode" button: runs full animation with mock data (one normal + one urgent case)
+  Normal: fever, joint pain, fatigue → urgencyLevel 2
+  Urgent: chest pain, difficulty breathing, sweating → urgencyLevel 5, isUrgent true, redFlags: ["Possible cardiac event", "Immediate referral required"]
+
+<span class="comment">## FILE STRUCTURE</span>
+src/components/Header.tsx, AudioUpload.tsx, AgentPipeline.tsx, AgentNode.tsx, PipelineConnector.tsx, ReferralOutput.tsx, UrgencyBanner.tsx, BottomBar.tsx
+src/types/pipeline.ts
+src/hooks/usePipeline.ts
+src/utils/mockData.ts, api.ts
+App.tsx, main.tsx, index.css
+vite.config.ts — proxy /api to http://localhost:8000
+
+<span class="comment">## CRITICAL REQUIREMENTS</span>
+- AgentPipeline.tsx is the most important component — make it the most detailed and animated
+- Safety node MUST visually branch off to the side using absolute/grid positioning
+- All agent result text uses typewriter reveal with IBM Plex Mono
+- Referral note looks like a real clinical document: ALL-CAPS section labels, mono font content, section dividers
+- Optimise for 1440px demo screen, not mobile
+- Build Demo Mode first — it must work even if the API is down during the live demo
+- Set up CORS proxy in vite.config.ts from the start
+
+Build this completely. Start with types/pipeline.ts, then App.tsx shell, then each component. Make the pipeline animation work perfectly before the API integration.
+    </div>
+  </div>
+
+  <!-- DEMO SCRIPT -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">13</span>
+      <h2>Demo Script (4 Minutes)</h2>
+    </div>
+    <div class="checklist">
+      <div class="check-item"><div class="check-box"></div><strong style="color:var(--text); min-width:140px">0:00–0:30 — Problem</strong>&nbsp; "In rural Pakistan, 60M+ people have no specialist access. A health worker hears symptoms in Sindhi with no training to interpret them. This is the gap we're closing."</div>
+      <div class="check-item"><div class="check-box"></div><strong style="color:var(--text); min-width:140px">0:30–1:30 — Architecture</strong>&nbsp; Show the agent pipeline diagram. Name each agent, its role, its model. Highlight the Safety override — "This agent can halt the entire pipeline."</div>
+      <div class="check-item"><div class="check-box"></div><strong style="color:var(--text); min-width:140px">1:30–2:30 — Normal Demo</strong>&nbsp; Upload normal case audio. Walk through each agent node lighting up in the React UI. Show final referral note in English + Urdu side by side.</div>
+      <div class="check-item"><div class="check-box"></div><strong style="color:var(--text); min-width:140px">2:30–3:30 — Urgent Demo</strong>&nbsp; Upload urgent case (chest pain). Show Safety Agent triggering URGENT ESCALATION. Show the different referral note format with red flags highlighted.</div>
+      <div class="check-item"><div class="check-box"></div><strong style="color:var(--text); min-width:140px">3:30–4:00 — Impact + Next</strong>&nbsp; "Zero autonomous diagnosis — always human-in-the-loop. Next: offline mode for areas without internet, WhatsApp voice note integration."</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
