@@ -1,0 +1,30 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Test artifacts (regenerated on each run)
+test_output.txt
+test_results.md
+backend/test_result*.json
+
+# Vector stores — committed for deployment (small enough at ~3KB)
+# knowledge_base/faiss_index/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Node
+node_modules/
