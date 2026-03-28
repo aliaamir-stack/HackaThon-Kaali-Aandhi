@@ -1,121 +1,124 @@
-/**
- * pipeline.ts
- * TypeScript types for the POST /run-pipeline API response.
- * Mirrors backend/pipeline/state.py (PipelineState Pydantic model).
- */
+// ============================================
+// Person C — Input Pipeline Types (Arsal)
+// Transcription → Localization → Triage
+// Maps to: tools/transcriber.py
+//          agents/localization_agent.py
+//          agents/triage_agent.py
+// ============================================
 
-// ── Severity ─────────────────────────────────────────────────────────────────
+// ── Stages owned by Person C ──────────────────
 
-export type Severity = "low" | "medium" | "high" | "critical" | "unknown";
+export type PersonCStage =
+  | "transcription"
+  | "localization"
+  | "triage"
+  | "done"
+  | "error";
 
-// ── Sub-shapes ────────────────────────────────────────────────────────────────
+// ── Transcription ─────────────────────────────
+// Source: tools/transcriber.py (Groq Whisper large-v3)
 
-/** Output of tools/transcriber.py */
 export interface TranscriptionResult {
-  /** Raw transcript text from Whisper or user text input */
+  /** Raw transcript text produced by Whisper or passed through from text input */
   transcript: string;
-  /** ISO-639-1 language code as detected by Whisper (e.g. "en", "ur") */
+
+  /** ISO-639-1 language code detected by Whisper (e.g. "en", "ur", "ar") */
   detected_language: string;
-  /** Audio duration in seconds — null for text input */
+
+  /** Audio duration in seconds — null when input is plain text */
   audio_duration: number | null;
 }
 
-/** Output of agents/localization_agent.py */
+// ── Localization ──────────────────────────────
+// Source: agents/localization_agent.py (Llama-3.1-8B on Groq)
+
 export interface LocalizationResult {
-  /** Full language name in English (e.g. "Urdu", "Arabic") */
+  /** Full language name in English (e.g. "Urdu", "Arabic", "Spanish") */
   confirmed_language: string;
-  /** ISO-639-1 code after confirmation (e.g. "ur", "ar") */
+
+  /** ISO-639-1 code after confirmation (e.g. "ur", "ar", "es") */
   language_code: string;
-  /** Patient description translated to English */
-  english_transcript: string;
+
+  /** Transcript translated to English — identical to transcript if already English */
+  localized_text: string;
+
   /** True if a translation was performed */
   was_translated: boolean;
-  /** Comma-separated list of flagged ambiguous medical terms */
+
+  /** Comma-separated list of ambiguous or uncertain medical terms flagged during translation */
   translation_notes: string;
 }
 
-/** Output of agents/triage_agent.py */
+// ── Triage ────────────────────────────────────
+// Source: agents/triage_agent.py (DeepSeek-R1-Distill-Llama-70B on Groq)
+
 export interface TriageResult {
-  /** Extracted symptoms with descriptors (e.g. "severe headache for 3 days") */
+  /** Symptoms extracted from the patient description with onset/duration descriptors */
   symptoms: string[];
-  /** Clinical urgency level */
-  severity: Severity;
+
+  /** Clinical urgency level assigned by the triage agent */
+  severity: "Low" | "Medium" | "High" | "Critical";
+
   /** Clinically important details the patient did not mention */
   missing_info: string[];
+
   /** 2–4 sentence clinical summary for the attending physician */
   triage_summary: string;
 }
 
-/** Output of agents/specialist_agent.py (Person D) */
-export interface SpecialistResult {
-  /** RAG-enriched specialist analysis */
-  specialist_findings: string;
-  /** Source chunks retrieved from the knowledge base */
-  retrieved_chunks: string[];
+// ── Stage Flags ───────────────────────────────
+// Granular start/end signals for each of Person C's three stages
+
+export interface PersonCStageFlags {
+  /** Signals the overall Person C pipeline segment has started */
+  started: boolean;
+
+  /** Signals the overall Person C pipeline segment has finished */
+  completed: boolean;
+
+  // Transcription
+  transcription_started: boolean;
+  transcription_completed: boolean;
+
+  // Localization
+  localization_started: boolean;
+  localization_completed: boolean;
+
+  // Triage
+  triage_started: boolean;
+  triage_completed: boolean;
 }
 
-/** Output of agents/safety_agent.py (Person E) */
-export interface SafetyResult {
-  /** Detected safety red flags */
-  red_flags: string[];
-  /** True if a human clinician override is mandatory */
-  override_required: boolean;
-}
+// ── Full Person C Response ────────────────────
+// Combined output of all three Person C agents
 
-/** Output of agents/summary_agent.py (Person E) */
-export interface SummaryResult {
-  /** Final Markdown-formatted referral note for the clinician */
-  referral_note: string;
-}
-
-// ── Full API Response ─────────────────────────────────────────────────────────
-
-/**
- * Full response shape from POST /run-pipeline.
- * All fields are present; agents that haven't run yet return empty defaults.
- */
-export interface PipelineResponse
+export interface PersonCResponse
   extends TranscriptionResult,
     LocalizationResult,
     TriageResult,
-    SpecialistResult,
-    SafetyResult,
-    SummaryResult {
-  /** Set to an error message string if any pipeline node failed, otherwise null */
-  pipeline_error: string | null;
+    PersonCStageFlags {
+  /** Current stage Person C's pipeline is processing */
+  current_stage: PersonCStage;
+
+  /** Error message if any stage failed — undefined on success */
+  error?: string;
 }
 
-// ── Request shape ─────────────────────────────────────────────────────────────
+// ── Request ───────────────────────────────────
 
-/**
- * Body sent to POST /run-pipeline.
- * Use FormData — send either audio_file OR text_input, not both.
- *
- * @example
- * const form = new FormData();
- * form.append("audio_file", file);          // audio upload
- * // OR
- * form.append("text_input", "I have ...");  // plain text
- * fetch("/run-pipeline", { method: "POST", body: form });
- */
-export interface PipelineRequest {
-  /** Audio file (mp3, wav, m4a, webm, ogg, flac — max 25 MB) */
-  audio_file?: File;
-  /** Direct text input (used when no audio is provided) */
-  text_input?: string;
+export interface PersonCRequest {
+  /** Base64-encoded audio file OR plain text symptom description */
+  input: string;
+
+  /** Whether the input is an audio file or direct text */
+  input_type: "audio" | "text";
+
+  /** Original filename — required when input_type is "audio" */
+  filename?: string;
 }
 
-// ── Utility types ─────────────────────────────────────────────────────────────
+// ── Status ────────────────────────────────────
 
-/** Severity levels ordered from least to most urgent */
-export const SEVERITY_ORDER: Severity[] = [
-  "unknown",
-  "low",
-  "medium",
-  "high",
-  "critical",
-];
-
-/** Returns true if the severity requires immediate attention */
-export const isUrgent = (severity: Severity): boolean =>
-  severity === "high" || severity === "critical";
+export interface PersonCStatus extends PersonCStageFlags {
+  current_stage: PersonCStage;
+}
