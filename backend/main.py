@@ -25,7 +25,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # Load environment variables from .env
-load_dotenv()
+env_path = Path(__file__).parent / ".env"
+load_dotenv(env_path)
 
 # Import after env load
 from backend.pipeline.state import PipelineState
