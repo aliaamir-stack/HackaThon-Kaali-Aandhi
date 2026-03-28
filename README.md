@@ -99,3 +99,17 @@ This repository is licensed under the **MIT License** — see the [LICENSE](LICE
 
 *Ready to build the future?*  
 **Let the agents begin!** 🤖✨
+
+---
+
+## Frontend (Next.js)
+
+This repo includes a Next.js app for the rural health pipeline UI.
+
+```bash
+cd frontend   # or project root if app lives at root
+npm install
+npm run dev
+```
+
+Configure `NEXT_PUBLIC_API_URL` in `.env.local` (see `.env.example`). Open [http://localhost:3000](http://localhost:3000).
