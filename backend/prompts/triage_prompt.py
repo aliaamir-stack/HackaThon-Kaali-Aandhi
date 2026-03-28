@@ -55,12 +55,13 @@ Analyse the transcript and return a JSON object with EXACTLY these keys:
     "<symptom 2>",
     "..."
   ],
+  "duration": "<overall duration of the chief complaint, e.g. '2 days', '1 week', or empty string if unclear>",
   "severity": "<one of: low | medium | high | critical>",
   "missing_info": [
     "<key clinical detail not mentioned, e.g. 'fever temperature reading'>",
     "<missing detail 2>",
     "..."
   ],
-  "triage_summary": "<2–4 sentence objective clinical summary for the attending physician>"
+  "triage_summary": "<2-4 sentence objective clinical summary for the attending physician>"
 }}
 """

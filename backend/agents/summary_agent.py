@@ -22,7 +22,7 @@ async def summary_node(state: PipelineState) -> dict:
 
     model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-    urgency_label = "🚨 URGENT ESCALATION" if state.is_urgent else f"Level {state.urgency_level}/5"
+    urgency_label = "URGENT ESCALATION" if state.is_urgent else f"Level {state.urgency_level}/5"
 
     user_prompt = (
         f"Patient Complaint (clinical English): {state.clinical_english}\n\n"
@@ -50,6 +50,7 @@ async def summary_node(state: PipelineState) -> dict:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.3,
+                response_format={"type": "json_object"},
             )
 
             raw = response.choices[0].message.content

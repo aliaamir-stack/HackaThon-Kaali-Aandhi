@@ -45,6 +45,7 @@ async def safety_node(state: PipelineState) -> dict:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.0,
+                response_format={"type": "json_object"},
             )
 
             raw = response.choices[0].message.content
