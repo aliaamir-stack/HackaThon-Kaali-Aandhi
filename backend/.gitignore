@@ -19,8 +19,8 @@ venv/
 .venv/
 env/
 
-# FAISS index (large binary files)
-knowledge_base/faiss_index/
+# FAISS index — committed for deployment (small enough at ~3KB)
+# knowledge_base/faiss_index/
 
 # Uploaded audio (temp files)
 uploads/
