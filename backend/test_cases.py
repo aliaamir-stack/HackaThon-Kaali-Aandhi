@@ -29,6 +29,7 @@ async def test_normal_case():
         potential_conditions=["Viral URI", "Influenza"],
         urgency_level=2,
         evidence_sources=["WHO Respiratory Guideline 2023"],
+        recommended_tests=["CBC", "Throat swab"],
     )
 
     # Run Safety
@@ -78,6 +79,7 @@ async def test_urgent_case():
         potential_conditions=["Myocardial Infarction", "Pulmonary Embolism"],
         urgency_level=5,
         evidence_sources=["CDC Acute Coronary Syndrome Guide"],
+        recommended_tests=["ECG", "Troponin levels", "Chest X-ray"],
     )
 
     safety_result = await safety_node(state)

@@ -64,6 +64,7 @@ async def safety_node(state: PipelineState) -> dict:
             return {
                 "is_urgent": validated.is_urgent,
                 "red_flags": validated.red_flags,
+                "drug_interactions": validated.drug_interactions,
                 "override_required": validated.override_required,
             }
 
@@ -85,5 +86,6 @@ async def safety_node(state: PipelineState) -> dict:
     return {
         "is_urgent": False,
         "red_flags": [],
+        "drug_interactions": [],
         "override_required": False,
     }

@@ -29,11 +29,13 @@ async def summary_node(state: PipelineState) -> dict:
         f"Severity: {state.severity}/10\n"
         f"Duration: {state.duration}\n\n"
         f"Potential Conditions: {state.potential_conditions}\n"
+        f"Recommended Tests: {state.recommended_tests}\n"
         f"Urgency: {urgency_label}\n"
         f"Evidence Sources: {state.evidence_sources}\n\n"
         f"Safety Flags:\n"
         f"  Is Urgent: {state.is_urgent}\n"
         f"  Red Flags: {state.red_flags}\n"
+        f"  Drug Interactions: {state.drug_interactions}\n"
         f"  Override Required: {state.override_required}\n\n"
         f"Target native language for patient note: {state.source_language}\n"
     )
