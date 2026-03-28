@@ -1,5 +1,8 @@
 # Root requirements.txt — used by Railway / Render for deployment.
-# Mirrors backend/requirements.txt exactly.
+# IMPORTANT: CPU-only torch keeps the image under 4GB.
+
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
 
 # Server
 fastapi==0.115.0
