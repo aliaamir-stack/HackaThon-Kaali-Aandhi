@@ -1,25 +1,20 @@
 import os
 import re
 import json
-from pydantic import BaseModel, ValidationError
-from openai import AsyncOpenAI
+from pathlib import Path
+from dotenv import load_dotenv
+from groq import Groq
 from backend.pipeline.state import PipelineState
 from backend.prompts.summary_prompt import SUMMARY_SYSTEM_PROMPT
 
-
-class SummaryOutput(BaseModel):
-    referral_note_en: str
-    referral_note_native: str
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 
-async def summary_node(state: PipelineState) -> dict:
-    print("--- [Summary Node] Start ---")
+def run_summary_agent(state: PipelineState) -> dict:
+    """Synchronous summary agent — uses Groq SDK with forced JSON mode."""
+    print("[Summary Agent] Running...")
 
-    client = AsyncOpenAI(
-        api_key=os.environ["GROQ_API_KEY"],
-        base_url="https://api.groq.com/openai/v1",
-    )
-
+    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
     model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     urgency_label = "URGENT ESCALATION" if state.is_urgent else f"Level {state.urgency_level}/5"
@@ -43,7 +38,7 @@ async def summary_node(state: PipelineState) -> dict:
 
     for attempt in range(2):
         try:
-            response = await client.chat.completions.create(
+            response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
@@ -54,43 +49,52 @@ async def summary_node(state: PipelineState) -> dict:
             )
 
             raw = response.choices[0].message.content
-            print(f"  Raw LLM output (attempt {attempt + 1}, first 200 chars):\n{raw[:200]}")
+            print(f"  [Summary] LLM response (attempt {attempt + 1}): {raw[:300]}")
 
-            # Strip <think>...</think> blocks from DeepSeek-R1
             cleaned = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-            # Strip markdown fences
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[1]
-            if cleaned.endswith("```"):
-                cleaned = cleaned.rsplit("```", 1)[0]
-            cleaned = cleaned.strip()
-
             data = json.loads(cleaned)
-            validated = SummaryOutput(**data)
 
-            print("  OK Summary generated successfully")
+            note_en = data.get("referral_note_en", "")
+            note_native = data.get("referral_note_native", "")
+
+            if not note_en:
+                raise ValueError("referral_note_en is empty in LLM response")
+
+            print(f"  [Summary] OK en={len(note_en)} chars, native={len(note_native)} chars")
             return {
-                "referral_note_en": validated.referral_note_en,
-                "referral_note_native": validated.referral_note_native,
+                "referral_note_en": note_en,
+                "referral_note_native": note_native,
                 "pipeline_status": "complete",
             }
 
-        except (json.JSONDecodeError, ValidationError) as e:
+        except json.JSONDecodeError as e:
             if attempt == 0:
-                print(f"  WARNING Parse error (attempt 1), retrying: {e}")
-                user_prompt += (
-                    "\n\nYour previous response was not valid JSON. "
-                    "Please reply with ONLY the JSON object, no markdown."
-                )
+                print(f"  [Summary] JSON parse error (attempt 1), retrying: {e}")
+                user_prompt += "\n\nRespond with ONLY a valid JSON object."
             else:
-                print(f"  ERROR Parse error (attempt 2), failing gracefully: {e}")
+                print(f"  [Summary] JSON parse error (attempt 2): {e}")
 
         except Exception as e:
-            print(f"  ERROR API error: {e}")
+            print(f"  [Summary] Error: {e}")
+            if attempt == 0:
+                print("  [Summary] Retrying...")
+                continue
             break
 
+    urgency_tag = "URGENT ESCALATION" if state.override_required else "Routine Referral"
+    fallback_note = (
+        f"# {urgency_tag}\n\n"
+        f"**Patient Complaint:** {state.clinical_english}\n"
+        f"**Symptoms:** {', '.join(state.symptoms)}\n"
+        f"**Severity:** {state.severity}/10\n\n"
+        f"**Urgency Level:** {state.urgency_level}/5\n"
+        f"**Red Flags:** {', '.join(state.red_flags) if state.red_flags else 'None detected'}\n\n"
+        f"---\n"
+        f"WARNING: This report is for physician review only. Not an autonomous diagnosis.\n"
+        f"*[Auto-generated fallback -- summary agent encountered an error]*"
+    )
     return {
-        "referral_note_en": "Error: Unable to generate referral note.",
-        "referral_note_native": "Error: Unable to generate referral note.",
-        "pipeline_status": "error",
+        "referral_note_en": fallback_note,
+        "referral_note_native": state.clinical_english or "[Translation unavailable]",
+        "pipeline_status": "complete",
     }

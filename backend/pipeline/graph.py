@@ -14,7 +14,6 @@ LangGraph node that takes PipelineState and returns a dict of updated fields.
 """
 
 import os
-import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
@@ -226,29 +225,13 @@ def specialist_node(state: PipelineState) -> dict:
 # ── NODE 5: Safety ──────────────────────────────────────────────────────────────
 
 def safety_node(state: PipelineState) -> dict:
-    """Wraps Person E's safety_agent.py (async → sync adapter)."""
+    """Calls the synchronous safety agent directly — no async adapter needed."""
     print("[Safety Node] Running...")
     try:
-        from backend.agents.safety_agent import safety_node as _async_safety_node
-
-        # Person E wrote an async function — run it in an event loop
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # We're already inside an event loop (FastAPI) — use run_in_executor
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    result = pool.submit(asyncio.run, _async_safety_node(state)).result()
-            else:
-                result = loop.run_until_complete(_async_safety_node(state))
-        except RuntimeError:
-            result = asyncio.run(_async_safety_node(state))
-
-        return result
-
+        from backend.agents.safety_agent import run_safety_agent
+        return run_safety_agent(state)
     except Exception as e:
         print(f"[Safety Node] ERROR: {e}")
-        # Conservative fallback — don't suppress potential emergencies
         urgent_keywords = {"chest pain", "difficulty breathing", "stroke", "seizure", "unconscious"}
         symptoms_text = " ".join(state.symptoms).lower() if state.symptoms else ""
         is_urgent = any(kw in symptoms_text for kw in urgent_keywords)
@@ -263,45 +246,15 @@ def safety_node(state: PipelineState) -> dict:
 # ── NODE 6: Summary ────────────────────────────────────────────────────────────
 
 def summary_node(state: PipelineState) -> dict:
-    """Wraps Person E's summary_agent.py (async → sync adapter)."""
+    """Calls the synchronous summary agent directly — no async adapter needed."""
     print("[Summary Node] Running...")
     try:
-        from backend.agents.summary_agent import summary_node as _async_summary_node
-
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    result = pool.submit(asyncio.run, _async_summary_node(state)).result()
-            else:
-                result = loop.run_until_complete(_async_summary_node(state))
-        except RuntimeError:
-            result = asyncio.run(_async_summary_node(state))
-
-        return result
-
+        from backend.agents.summary_agent import run_summary_agent
+        return run_summary_agent(state)
     except Exception as e:
         print(f"[Summary Node] ERROR: {e}")
-        urgency_tag = "URGENT ESCALATION" if state.override_required else "Routine Referral"
-        note = f"""# {urgency_tag}
-
-**Patient Complaint:** {state.clinical_english}
-**Symptoms:** {', '.join(state.symptoms)}
-**Severity:** {state.severity}/10
-
-**Potential Conditions (for physician review):**
-{chr(10).join(f'- {c}' for c in state.potential_conditions)}
-
-**Urgency Level:** {state.urgency_level}/5
-**Red Flags:** {', '.join(state.red_flags) if state.red_flags else 'None detected'}
-
----
-⚠ This report is for physician review only. Not an autonomous diagnosis.
-*[Auto-generated fallback — summary agent encountered an error: {e}]*
-"""
         return {
-            "referral_note_en": note,
+            "referral_note_en": f"# Error\n\nSummary generation failed: {e}",
             "referral_note_native": "[Error generating native translation]",
             "pipeline_status": "complete",
         }
