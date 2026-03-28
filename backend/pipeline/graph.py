@@ -8,174 +8,296 @@ Defines the full pipeline graph:
 The router uses a conditional edge: if safety.override_required == True,
 the summary agent generates an URGENT ESCALATION note instead of normal output.
 
-NOTE: The agent node functions are imported from backend/agents/.
-While Persons C, D, E are building their agents, stub versions are used
-so this graph can be tested end-to-end immediately.
+IMPORTANT: Each teammate's agent has different function signatures and field names.
+This file acts as the adapter layer — wrapping each agent into a consistent
+LangGraph node that takes PipelineState and returns a dict of updated fields.
 """
 
 import os
+import asyncio
+from pathlib import Path
+from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from backend.pipeline.state import PipelineState
 from backend.pipeline.router import route_after_safety
 
-# ── Import real agent nodes (once delivered by C, D, E) ───────────────────────
-# These will raise ImportError if the files don't exist yet — stubs below handle that
+# Ensure .env is loaded before any agent imports
+load_dotenv(Path(__file__).parent.parent / ".env")
 
-def _try_import_agents():
-    agents = {}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NODE WRAPPERS — adapt each teammate's real agent to LangGraph's interface
+# Each node:  takes PipelineState → returns dict of fields to update
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ── NODE 1: Transcribe ──────────────────────────────────────────────────────────
+
+def transcribe_node(state: PipelineState) -> dict:
+    """Wraps Person C's transcriber.py into a LangGraph node."""
+    print("🎙 [Transcribe Node] Running...")
     try:
-        from backend.agents.localization_agent import run_localization_agent
-        agents["localization"] = run_localization_agent
-    except ImportError:
-        agents["localization"] = None
+        from backend.tools.transcriber import transcribe_audio
+        result = transcribe_audio(
+            audio_file_path=state.audio_path,
+            language=state.source_language or None,
+        )
+        return {
+            "raw_transcript": result.get("text", ""),
+            "source_language": result.get("detected_language", state.source_language),
+            "pipeline_status": "running",
+        }
+    except Exception as e:
+        print(f"🎙 [Transcribe Node] ❌ Error: {e}")
+        return {
+            "raw_transcript": f"[transcription error: {e}]",
+            "source_language": state.source_language or "unknown",
+            "pipeline_status": "running",
+        }
 
+
+# ── NODE 2: Localize ────────────────────────────────────────────────────────────
+
+def localize_node(state: PipelineState) -> dict:
+    """Wraps Person C's localization_agent.py into a LangGraph node.
+    Adapts field names: their code uses 'transcript' and 'english_transcript',
+    our state uses 'raw_transcript' and 'clinical_english'.
+    """
+    print("🌐 [Localize Node] Running...")
     try:
-        from backend.agents.triage_agent import run_triage_agent
-        agents["triage"] = run_triage_agent
-    except ImportError:
-        agents["triage"] = None
+        from backend.agents.localization_agent import localization_agent, Groq
+        import json
+        from groq import Groq
 
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+
+        _SYSTEM_PROMPT = """You are a precise medical language localization assistant integrated into a clinical decision-support system.
+
+Your responsibilities:
+1. Confirm or correct the language detected by the speech-to-text system.
+2. Translate the transcript to English if it is not already in English.
+3. Preserve ALL medical terminology, symptom descriptions, durations, and clinical details with exact fidelity.
+4. Never add, remove, paraphrase, or interpret clinical content.
+
+Always respond with a single, valid JSON object. No prose outside the JSON."""
+
+        transcript = state.raw_transcript
+        detected_hint = state.source_language or "unknown"
+
+        user_message = f"""Medical transcript to localise:
+
+\"\"\"{transcript}\"\"\"
+
+Language hint from speech-to-text (may be inaccurate): {detected_hint}
+
+Return a JSON object with EXACTLY these keys:
+{{
+  "confirmed_language": "<full language name in English>",
+  "language_code": "<ISO 639-1 two-letter code>",
+  "english_text": "<complete English translation — identical to input if already in English>",
+  "was_translated": <true or false>,
+  "translation_notes": "<comma-separated list of ambiguous terms, or empty string>"
+}}"""
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=0.1,
+            max_tokens=2048,
+            response_format={"type": "json_object"},
+        )
+
+        result = json.loads(response.choices[0].message.content)
+        clinical_english = result.get("english_text", transcript)
+        source_lang = result.get("confirmed_language", detected_hint)
+
+        print(f"🌐 [Localize Node] ✅ language={source_lang}, translated={result.get('was_translated', False)}")
+        return {
+            "clinical_english": clinical_english,
+            "source_language": source_lang,
+        }
+    except Exception as e:
+        print(f"🌐 [Localize Node] ❌ Error: {e}")
+        return {
+            "clinical_english": state.raw_transcript,  # pass through as-is
+            "source_language": state.source_language or "unknown",
+        }
+
+
+# ── NODE 3: Triage ──────────────────────────────────────────────────────────────
+
+def triage_node(state: PipelineState) -> dict:
+    """Wraps Person C's triage_agent.py into a LangGraph node.
+    Adapts: reads 'clinical_english' (not 'english_transcript'),
+    converts severity from string to int.
+    """
+    print("📋 [Triage Node] Running...")
+    try:
+        import json
+        import re
+        from groq import Groq
+        from backend.prompts.triage_prompt import TRIAGE_SYSTEM_PROMPT, build_triage_user_prompt
+
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+        english_text = state.clinical_english or state.raw_transcript
+
+        response = client.chat.completions.create(
+            model="deepseek-r1-distill-llama-70b",
+            messages=[
+                {"role": "system", "content": TRIAGE_SYSTEM_PROMPT},
+                {"role": "user", "content": build_triage_user_prompt(english_text)},
+            ],
+            temperature=0.2,
+            max_tokens=4096,
+        )
+
+        raw_content = response.choices[0].message.content
+        # Strip <think>...</think> blocks from DeepSeek-R1
+        cleaned = re.sub(r"<think>.*?</think>", "", raw_content, flags=re.DOTALL).strip()
+
+        # Try direct JSON parse, then regex fallback
+        try:
+            result = json.loads(cleaned)
+        except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+            if match:
+                result = json.loads(match.group())
+            else:
+                raise ValueError(f"No JSON found in triage response")
+
+        # Convert severity string → int (our state uses int 0-10)
+        severity_map = {"low": 2, "medium": 4, "high": 7, "critical": 10}
+        raw_severity = str(result.get("severity", "medium")).lower().strip()
+        severity_int = severity_map.get(raw_severity, 4)
+
+        print(f"📋 [Triage Node] ✅ symptoms={len(result.get('symptoms', []))}, severity={severity_int}")
+        return {
+            "symptoms": [str(s) for s in result.get("symptoms", [])],
+            "duration": str(result.get("duration", "")),
+            "severity": severity_int,
+            "missing_info": [str(m) for m in result.get("missing_info", [])],
+        }
+    except Exception as e:
+        print(f"📋 [Triage Node] ❌ Error: {e}")
+        return {
+            "symptoms": [],
+            "duration": "",
+            "severity": 4,
+            "missing_info": ["Automated triage failed — manual clinical review required"],
+        }
+
+
+# ── NODE 4: Specialist ──────────────────────────────────────────────────────────
+
+def specialist_node(state: PipelineState) -> dict:
+    """Wraps Person D's specialist_agent.py. Already compatible (returns dict)."""
+    print("🔬 [Specialist Node] Running...")
     try:
         from backend.agents.specialist_agent import run_specialist_agent
-        agents["specialist"] = run_specialist_agent
-    except ImportError:
-        agents["specialist"] = None
+        return run_specialist_agent(state)
+    except Exception as e:
+        print(f"🔬 [Specialist Node] ❌ Error: {e}")
+        return {
+            "potential_conditions": [f"[specialist error: {e}]"],
+            "urgency_level": 2,
+            "recommended_tests": [],
+            "evidence_sources": [],
+        }
 
+
+# ── NODE 5: Safety ──────────────────────────────────────────────────────────────
+
+def safety_node(state: PipelineState) -> dict:
+    """Wraps Person E's safety_agent.py (async → sync adapter)."""
+    print("🚨 [Safety Node] Running...")
     try:
-        from backend.agents.safety_agent import run_safety_agent
-        agents["safety"] = run_safety_agent
-    except ImportError:
-        agents["safety"] = None
+        from backend.agents.safety_agent import safety_node as _async_safety_node
 
+        # Person E wrote an async function — run it in an event loop
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # We're already inside an event loop (FastAPI) — use run_in_executor
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    result = pool.submit(asyncio.run, _async_safety_node(state)).result()
+            else:
+                result = loop.run_until_complete(_async_safety_node(state))
+        except RuntimeError:
+            result = asyncio.run(_async_safety_node(state))
+
+        return result
+
+    except Exception as e:
+        print(f"🚨 [Safety Node] ❌ Error: {e}")
+        # Conservative fallback — don't suppress potential emergencies
+        urgent_keywords = {"chest pain", "difficulty breathing", "stroke", "seizure", "unconscious"}
+        symptoms_text = " ".join(state.symptoms).lower() if state.symptoms else ""
+        is_urgent = any(kw in symptoms_text for kw in urgent_keywords)
+        return {
+            "is_urgent": is_urgent,
+            "red_flags": [f"Safety agent error: {e}"] if is_urgent else [],
+            "drug_interactions": [],
+            "override_required": is_urgent,
+        }
+
+
+# ── NODE 6: Summary ────────────────────────────────────────────────────────────
+
+def summary_node(state: PipelineState) -> dict:
+    """Wraps Person E's summary_agent.py (async → sync adapter)."""
+    print("📄 [Summary Node] Running...")
     try:
-        from backend.agents.summary_agent import run_summary_agent
-        agents["summary"] = run_summary_agent
-    except ImportError:
-        agents["summary"] = None
+        from backend.agents.summary_agent import summary_node as _async_summary_node
 
-    try:
-        from backend.tools.transcriber import run_transcriber
-        agents["transcribe"] = run_transcriber
-    except ImportError:
-        agents["transcribe"] = None
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    result = pool.submit(asyncio.run, _async_summary_node(state)).result()
+            else:
+                result = loop.run_until_complete(_async_summary_node(state))
+        except RuntimeError:
+            result = asyncio.run(_async_summary_node(state))
 
-    return agents
+        return result
 
-
-# ── Stub implementations (used until real agents are wired in) ─────────────────
-
-def _stub_transcribe(state: PipelineState) -> dict:
-    """Stub: simulates Whisper output."""
-    print("🎙 [STUB] transcribe_node running...")
-    return {
-        "raw_transcript": "[STUB] Mujhe teen din se bukhaar hai aur sar dard ho raha hai.",
-        "source_language": state.source_language or "urdu",
-        "pipeline_status": "running",
-    }
-
-
-def _stub_localize(state: PipelineState) -> dict:
-    """Stub: simulates Localization Agent (Llama-3-8B on Groq)."""
-    print("🌐 [STUB] localize_node running...")
-    return {
-        "clinical_english": "[STUB] Patient reports fever for 3 days accompanied by headache. No vomiting. Appetite reduced.",
-        "source_language": state.source_language or "urdu",
-    }
-
-
-def _stub_triage(state: PipelineState) -> dict:
-    """Stub: simulates Triage Agent (DeepSeek-R1)."""
-    print("📋 [STUB] triage_node running...")
-    return {
-        "symptoms": ["fever", "headache", "reduced appetite"],
-        "duration": "3 days",
-        "severity": 4,
-        "missing_info": ["temperature reading", "any recent travel", "medication history"],
-    }
-
-
-def _stub_specialist(state: PipelineState) -> dict:
-    """Stub: simulates Specialist Agent (DeepSeek-R1 + RAG)."""
-    print("🔬 [STUB] specialist_node running...")
-    return {
-        "potential_conditions": ["Viral fever", "Typhoid (early stage)", "Dengue (rule out)"],
-        "urgency_level": 2,
-        "recommended_tests": ["Complete blood count (CBC)", "Dengue NS1 antigen test", "Typhoid test"],
-        "evidence_sources": ["WHO Primary Healthcare Guidelines 2023", "CDC Dengue Clinical Guidelines"],
-    }
-
-
-def _stub_safety(state: PipelineState) -> dict:
-    """Stub: simulates Safety Agent (DeepSeek-R1)."""
-    print("🚨 [STUB] safety_node running...")
-    # Override to True only if symptoms contain red-flag keywords (for testing)
-    urgent_keywords = {"chest pain", "difficulty breathing", "stroke", "seizure", "unconscious"}
-    is_urgent = any(kw in s.lower() for s in state.symptoms for kw in urgent_keywords)
-    return {
-        "is_urgent": is_urgent,
-        "red_flags": ["Possible cardiac event"] if is_urgent else [],
-        "drug_interactions": [],
-        "override_required": is_urgent,
-    }
-
-
-def _stub_summary(state: PipelineState) -> dict:
-    """Stub: simulates Summary Agent (DeepSeek-R1)."""
-    print("📄 [STUB] summary_node running...")
-    urgency_tag = "🚨 URGENT ESCALATION" if state.override_required else "✅ Routine Referral"
-    note = f"""# {urgency_tag}
+    except Exception as e:
+        print(f"📄 [Summary Node] ❌ Error: {e}")
+        urgency_tag = "🚨 URGENT ESCALATION" if state.override_required else "✅ Routine Referral"
+        note = f"""# {urgency_tag}
 
 **Patient Complaint:** {state.clinical_english}
-
 **Symptoms:** {', '.join(state.symptoms)}
-**Duration:** {state.duration}
 **Severity:** {state.severity}/10
 
 **Potential Conditions (for physician review):**
 {chr(10).join(f'- {c}' for c in state.potential_conditions)}
 
 **Urgency Level:** {state.urgency_level}/5
-
-**Recommended Tests:**
-{chr(10).join(f'- {t}' for t in state.recommended_tests)}
-
 **Red Flags:** {', '.join(state.red_flags) if state.red_flags else 'None detected'}
 
 ---
 ⚠ This report is for physician review only. Not an autonomous diagnosis.
+*[Auto-generated fallback — summary agent encountered an error: {e}]*
 """
-    return {
-        "referral_note_en": note,
-        "referral_note_native": "[STUB] Translation pending — Localization Agent will back-translate this.",
-        "pipeline_status": "complete",
-    }
+        return {
+            "referral_note_en": note,
+            "referral_note_native": "[Error generating native translation]",
+            "pipeline_status": "complete",
+        }
 
 
-# ── Node wrapper factory ────────────────────────────────────────────────────────
-
-def _make_node(real_fn, stub_fn):
-    """Returns the real agent function if available, otherwise the stub."""
-    if real_fn is not None:
-        return real_fn
-    return stub_fn
-
-
-# ── Graph Construction ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAPH CONSTRUCTION
+# ══════════════════════════════════════════════════════════════════════════════
 
 def build_graph():
-    """
-    Builds and compiles the LangGraph pipeline.
-    Returns a compiled runnable graph.
-    """
-    imported = _try_import_agents()
-
-    transcribe_node  = _make_node(imported.get("transcribe"),  _stub_transcribe)
-    localize_node    = _make_node(imported.get("localization"), _stub_localize)
-    triage_node      = _make_node(imported.get("triage"),       _stub_triage)
-    specialist_node  = _make_node(imported.get("specialist"),   _stub_specialist)
-    safety_node      = _make_node(imported.get("safety"),       _stub_safety)
-    summary_node     = _make_node(imported.get("summary"),      _stub_summary)
-
+    """Builds and compiles the LangGraph pipeline."""
     graph = StateGraph(PipelineState)
 
     # Register all nodes
@@ -197,14 +319,12 @@ def build_graph():
         "safety",
         route_after_safety,
         {
-            "urgent": "summary",   # Both paths lead to summary,
-            "normal": "summary",   # but state.override_required tells summary how to format
+            "urgent": "summary",
+            "normal": "summary",
         }
     )
 
     graph.add_edge("summary", END)
-
-    # Entry point
     graph.set_entry_point("transcribe")
 
     return graph.compile()
