@@ -15,7 +15,7 @@ from pipeline.state import PipelineState
 
 logger = logging.getLogger(__name__)
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+# Client initialized inside function
 
 _SYSTEM_PROMPT = """You are a precise medical language localization assistant integrated into a clinical decision-support system.
 
@@ -64,6 +64,7 @@ Return a JSON object with EXACTLY these keys:
 }}"""
 
     try:
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[

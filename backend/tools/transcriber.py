@@ -12,8 +12,7 @@ from groq import Groq
 
 logger = logging.getLogger(__name__)
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-
+# Client initialized inside function
 SUPPORTED_FORMATS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm", ".ogg", ".flac"}
 
 # Groq Whisper max file size: 25 MB
@@ -61,6 +60,7 @@ def transcribe_audio(audio_file_path: str, language: str | None = None) -> dict:
         )
 
     logger.info("Transcribing '%s' (%.1f MB, language hint=%s)", path.name, file_size_mb, language)
+    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
     with open(audio_file_path, "rb") as audio_file:
         kwargs: dict = {

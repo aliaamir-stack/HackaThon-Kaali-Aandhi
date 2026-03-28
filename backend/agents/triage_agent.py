@@ -17,7 +17,7 @@ from prompts.triage_prompt import TRIAGE_SYSTEM_PROMPT, build_triage_user_prompt
 
 logger = logging.getLogger(__name__)
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+# Client initialized inside function
 
 VALID_SEVERITY_LEVELS = {"low", "medium", "high", "critical"}
 
@@ -72,6 +72,7 @@ def triage_agent(state: PipelineState) -> PipelineState:
     )
 
     try:
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
         response = client.chat.completions.create(
             model="deepseek-r1-distill-llama-70b",
             messages=[
