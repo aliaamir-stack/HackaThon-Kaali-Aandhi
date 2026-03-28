@@ -33,14 +33,30 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 # ── NODE 1: Transcribe ──────────────────────────────────────────────────────────
 
+LANGUAGE_TO_ISO = {
+    "urdu": "ur", "sindhi": "sd", "pashto": "ps", "punjabi": "pa",
+    "arabic": "ar", "hindi": "hi", "english": "en", "bengali": "bn",
+    "balochi": "bal", "saraiki": "skr",
+}
+
 def transcribe_node(state: PipelineState) -> dict:
     """Wraps Person C's transcriber.py into a LangGraph node."""
-    print("🎙 [Transcribe Node] Running...")
+    print("[Transcribe Node] Running...")
+
+    # If raw_transcript is already provided (text input mode), skip transcription
+    if state.raw_transcript and state.raw_transcript.strip():
+        print(f"[Transcribe Node] Skipping -- text already provided ({len(state.raw_transcript)} chars)")
+        return {"pipeline_status": "running"}
+
     try:
         from backend.tools.transcriber import transcribe_audio
+        lang_hint = (state.source_language or "").lower().strip()
+        iso_lang = LANGUAGE_TO_ISO.get(lang_hint, lang_hint) if lang_hint else None
+        if iso_lang and len(iso_lang) > 3:
+            iso_lang = None
         result = transcribe_audio(
             audio_file_path=state.audio_path,
-            language=state.source_language or None,
+            language=iso_lang,
         )
         return {
             "raw_transcript": result.get("text", ""),
@@ -48,7 +64,7 @@ def transcribe_node(state: PipelineState) -> dict:
             "pipeline_status": "running",
         }
     except Exception as e:
-        print(f"🎙 [Transcribe Node] ❌ Error: {e}")
+        print(f"[Transcribe Node] ERROR: {e}")
         return {
             "raw_transcript": f"[transcription error: {e}]",
             "source_language": state.source_language or "unknown",
@@ -63,9 +79,8 @@ def localize_node(state: PipelineState) -> dict:
     Adapts field names: their code uses 'transcript' and 'english_transcript',
     our state uses 'raw_transcript' and 'clinical_english'.
     """
-    print("🌐 [Localize Node] Running...")
+    print("[Localize Node] Running...")
     try:
-        from backend.agents.localization_agent import localization_agent, Groq
         import json
         from groq import Groq
 
@@ -114,13 +129,13 @@ Return a JSON object with EXACTLY these keys:
         clinical_english = result.get("english_text", transcript)
         source_lang = result.get("confirmed_language", detected_hint)
 
-        print(f"🌐 [Localize Node] ✅ language={source_lang}, translated={result.get('was_translated', False)}")
+        print(f"[Localize Node] OK language={source_lang}, translated={result.get('was_translated', False)}")
         return {
             "clinical_english": clinical_english,
             "source_language": source_lang,
         }
     except Exception as e:
-        print(f"🌐 [Localize Node] ❌ Error: {e}")
+        print(f"[Localize Node] ERROR: {e}")
         return {
             "clinical_english": state.raw_transcript,  # pass through as-is
             "source_language": state.source_language or "unknown",
@@ -134,7 +149,7 @@ def triage_node(state: PipelineState) -> dict:
     Adapts: reads 'clinical_english' (not 'english_transcript'),
     converts severity from string to int.
     """
-    print("📋 [Triage Node] Running...")
+    print("[Triage Node] Running...")
     try:
         import json
         import re
@@ -145,7 +160,7 @@ def triage_node(state: PipelineState) -> dict:
         english_text = state.clinical_english or state.raw_transcript
 
         response = client.chat.completions.create(
-            model="deepseek-r1-distill-llama-70b",
+            model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
             messages=[
                 {"role": "system", "content": TRIAGE_SYSTEM_PROMPT},
                 {"role": "user", "content": build_triage_user_prompt(english_text)},
@@ -173,7 +188,7 @@ def triage_node(state: PipelineState) -> dict:
         raw_severity = str(result.get("severity", "medium")).lower().strip()
         severity_int = severity_map.get(raw_severity, 4)
 
-        print(f"📋 [Triage Node] ✅ symptoms={len(result.get('symptoms', []))}, severity={severity_int}")
+        print(f"[Triage Node] OK symptoms={len(result.get('symptoms', []))}, severity={severity_int}")
         return {
             "symptoms": [str(s) for s in result.get("symptoms", [])],
             "duration": str(result.get("duration", "")),
@@ -181,7 +196,7 @@ def triage_node(state: PipelineState) -> dict:
             "missing_info": [str(m) for m in result.get("missing_info", [])],
         }
     except Exception as e:
-        print(f"📋 [Triage Node] ❌ Error: {e}")
+        print(f"[Triage Node] ERROR: {e}")
         return {
             "symptoms": [],
             "duration": "",
@@ -194,12 +209,12 @@ def triage_node(state: PipelineState) -> dict:
 
 def specialist_node(state: PipelineState) -> dict:
     """Wraps Person D's specialist_agent.py. Already compatible (returns dict)."""
-    print("🔬 [Specialist Node] Running...")
+    print("[Specialist Node] Running...")
     try:
         from backend.agents.specialist_agent import run_specialist_agent
         return run_specialist_agent(state)
     except Exception as e:
-        print(f"🔬 [Specialist Node] ❌ Error: {e}")
+        print(f"[Specialist Node] ERROR: {e}")
         return {
             "potential_conditions": [f"[specialist error: {e}]"],
             "urgency_level": 2,
@@ -212,7 +227,7 @@ def specialist_node(state: PipelineState) -> dict:
 
 def safety_node(state: PipelineState) -> dict:
     """Wraps Person E's safety_agent.py (async → sync adapter)."""
-    print("🚨 [Safety Node] Running...")
+    print("[Safety Node] Running...")
     try:
         from backend.agents.safety_agent import safety_node as _async_safety_node
 
@@ -232,7 +247,7 @@ def safety_node(state: PipelineState) -> dict:
         return result
 
     except Exception as e:
-        print(f"🚨 [Safety Node] ❌ Error: {e}")
+        print(f"[Safety Node] ERROR: {e}")
         # Conservative fallback — don't suppress potential emergencies
         urgent_keywords = {"chest pain", "difficulty breathing", "stroke", "seizure", "unconscious"}
         symptoms_text = " ".join(state.symptoms).lower() if state.symptoms else ""
@@ -249,7 +264,7 @@ def safety_node(state: PipelineState) -> dict:
 
 def summary_node(state: PipelineState) -> dict:
     """Wraps Person E's summary_agent.py (async → sync adapter)."""
-    print("📄 [Summary Node] Running...")
+    print("[Summary Node] Running...")
     try:
         from backend.agents.summary_agent import summary_node as _async_summary_node
 
@@ -267,8 +282,8 @@ def summary_node(state: PipelineState) -> dict:
         return result
 
     except Exception as e:
-        print(f"📄 [Summary Node] ❌ Error: {e}")
-        urgency_tag = "🚨 URGENT ESCALATION" if state.override_required else "✅ Routine Referral"
+        print(f"[Summary Node] ERROR: {e}")
+        urgency_tag = "URGENT ESCALATION" if state.override_required else "Routine Referral"
         note = f"""# {urgency_tag}
 
 **Patient Complaint:** {state.clinical_english}

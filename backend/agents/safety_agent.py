@@ -1,10 +1,11 @@
 import os
+import re
 import json
 from pydantic import BaseModel, ValidationError
 from typing import List
 from openai import AsyncOpenAI
-from pipeline.state import PipelineState
-from prompts.safety_prompt import SAFETY_SYSTEM_PROMPT
+from backend.pipeline.state import PipelineState
+from backend.prompts.safety_prompt import SAFETY_SYSTEM_PROMPT
 
 
 class SafetyOutput(BaseModel):
@@ -24,7 +25,7 @@ async def safety_node(state: PipelineState) -> dict:
         base_url="https://api.groq.com/openai/v1",
     )
 
-    model = os.environ.get("GROQ_MODEL", "deepseek-r1-distill-llama-70b")
+    model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     user_prompt = (
         f"Symptoms: {state.symptoms}\n"
@@ -49,8 +50,9 @@ async def safety_node(state: PipelineState) -> dict:
             raw = response.choices[0].message.content
             print(f"  Raw LLM output (attempt {attempt + 1}):\n{raw}")
 
+            # Strip <think>...</think> blocks from DeepSeek-R1
+            cleaned = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
             # Strip markdown fences if the model wraps them
-            cleaned = raw.strip()
             if cleaned.startswith("```"):
                 cleaned = cleaned.split("\n", 1)[1]
             if cleaned.endswith("```"):
@@ -60,7 +62,7 @@ async def safety_node(state: PipelineState) -> dict:
             data = json.loads(cleaned)
             validated = SafetyOutput(**data)
 
-            print(f"  ✅ Safety result: urgent={validated.is_urgent}, flags={validated.red_flags}")
+            print(f"  OK Safety result: urgent={validated.is_urgent}, flags={validated.red_flags}")
             return {
                 "is_urgent": validated.is_urgent,
                 "red_flags": validated.red_flags,
@@ -70,16 +72,16 @@ async def safety_node(state: PipelineState) -> dict:
 
         except (json.JSONDecodeError, ValidationError) as e:
             if attempt == 0:
-                print(f"  ⚠ Parse error (attempt 1), retrying: {e}")
+                print(f"  WARNING Parse error (attempt 1), retrying: {e}")
                 user_prompt += (
                     "\n\nYour previous response was not valid JSON. "
                     "Please reply with ONLY the JSON object, no markdown."
                 )
             else:
-                print(f"  ❌ Parse error (attempt 2), failing gracefully: {e}")
+                print(f"  ERROR Parse error (attempt 2), failing gracefully: {e}")
 
         except Exception as e:
-            print(f"  ❌ API error: {e}")
+            print(f"  ERROR API error: {e}")
             break
 
     # Graceful fallback

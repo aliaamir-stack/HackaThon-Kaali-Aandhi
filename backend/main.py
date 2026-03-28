@@ -1,14 +1,15 @@
 """
 main.py — FastAPI Application Entry Point
 ==========================================
-Run with:
-    cd backend
-    uvicorn main:app --reload --port 8000
+Run from project root:
+    uvicorn backend.main:app --reload --port 8000
 
 Endpoints:
-    GET  /           → health check
-    GET  /docs       → Swagger UI
-    POST /run-pipeline → main pipeline endpoint (multipart/form-data)
+    GET  /              -> health check + agent list
+    GET  /docs          -> Swagger UI (auto-generated)
+    POST /run-pipeline  -> audio input  (multipart/form-data)  -> PipelineResponse
+    POST /run-text      -> text input   (JSON body)            -> PipelineResponse
+    GET  /pipeline/status -> agent readiness check
 """
 
 import os
@@ -20,15 +21,12 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# Load environment variables from .env
 env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
-# Import after env load
 from backend.pipeline.state import PipelineState
 from backend.pipeline.graph import pipeline
 
@@ -40,29 +38,32 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS — allow Vite dev server and any local frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",   # Vite default
-        "http://localhost:3000",   # CRA fallback
+        "http://localhost:5173",
+        "http://localhost:3000",
         "http://127.0.0.1:5173",
-        "*",                       # Wide open during hackathon — restrict in production
+        "*",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Upload directory
 UPLOAD_DIR = Path(tempfile.gettempdir()) / "mediagent_uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 
-# ── Response Model ────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# REQUEST / RESPONSE MODELS — mirrored 1:1 in frontend/src/types/pipeline.ts
+# ══════════════════════════════════════════════════════════════════════════════
 
 class PipelineResponse(BaseModel):
-    """What the frontend receives after /run-pipeline completes."""
+    """
+    Canonical response for BOTH /run-pipeline and /run-text.
+    TS mirror: PipelineResponse in pipeline.ts
+    """
     pipeline_status: str
     raw_transcript: str
     source_language: str
@@ -84,7 +85,64 @@ class PipelineResponse(BaseModel):
     error_message: Optional[str] = None
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+class TextPipelineRequest(BaseModel):
+    """
+    JSON body for POST /run-text.
+    TS mirror: TextPipelineRequest in pipeline.ts
+    """
+    text: str
+    language: str = "urdu"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SHARED HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _build_response(final_state: dict, language: str) -> PipelineResponse:
+    """Convert LangGraph output dict into PipelineResponse."""
+    return PipelineResponse(
+        pipeline_status=final_state.get("pipeline_status", "complete"),
+        raw_transcript=final_state.get("raw_transcript", ""),
+        source_language=final_state.get("source_language", language),
+        clinical_english=final_state.get("clinical_english", ""),
+        symptoms=final_state.get("symptoms", []),
+        duration=final_state.get("duration", ""),
+        severity=final_state.get("severity", 0),
+        missing_info=final_state.get("missing_info", []),
+        potential_conditions=final_state.get("potential_conditions", []),
+        urgency_level=final_state.get("urgency_level", 1),
+        recommended_tests=final_state.get("recommended_tests", []),
+        evidence_sources=final_state.get("evidence_sources", []),
+        is_urgent=final_state.get("is_urgent", False),
+        red_flags=final_state.get("red_flags", []),
+        drug_interactions=final_state.get("drug_interactions", []),
+        override_required=final_state.get("override_required", False),
+        referral_note_en=final_state.get("referral_note_en", ""),
+        referral_note_native=final_state.get("referral_note_native", ""),
+        error_message=final_state.get("error_message"),
+    )
+
+
+async def _run_pipeline(initial_state: PipelineState, language: str, label: str) -> PipelineResponse:
+    """Execute the LangGraph pipeline and return PipelineResponse."""
+    print(f"\n{'='*60}")
+    print(f"[{label}] Starting | language={language}")
+    print(f"{'='*60}")
+
+    final_state = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: pipeline.invoke(initial_state)
+    )
+
+    print(f"\n{'='*60}")
+    print(f"[{label}] Complete | status={final_state.get('pipeline_status', 'complete')}")
+    print(f"{'='*60}\n")
+
+    return _build_response(final_state, language)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROUTES
+# ══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/", tags=["Health"])
 async def root():
@@ -99,31 +157,28 @@ async def root():
 
 @app.post("/run-pipeline", response_model=PipelineResponse, tags=["Pipeline"])
 async def run_pipeline(
-    audio: UploadFile = File(..., description="Audio file (WAV/MP3) of patient voice description"),
-    language: str = Form(default="urdu", description="Source language: urdu | sindhi | pashto | punjabi | other"),
+    audio: UploadFile = File(..., description="Audio file (WAV/MP3/OGG/WEBM)"),
+    language: str = Form(default="urdu", description="Source language: urdu | sindhi | pashto | punjabi | english | other"),
 ):
     """
-    Main pipeline endpoint.
+    Audio pipeline — accepts multipart/form-data.
 
-    Accepts a multipart/form-data request with:
-    - audio: the uploaded audio file
-    - language: selected language from the frontend dropdown
+    Request (FormData):
+        audio:    File       (required)
+        language: string     (default "urdu")
 
-    Returns the complete PipelineState as JSON after all agents have run.
+    TS mirror: AudioPipelineRequest in pipeline.ts
+    Returns:   PipelineResponse
     """
-
-    # ── Validate file type ────────────────────────────────────────────────────
-    allowed_types = {"audio/wav", "audio/mpeg", "audio/mp3", "audio/ogg", "audio/m4a",
-                     "audio/webm", "application/octet-stream"}
+    allowed_types = {
+        "audio/wav", "audio/mpeg", "audio/mp3", "audio/ogg",
+        "audio/m4a", "audio/webm", "application/octet-stream",
+    }
     if audio.content_type not in allowed_types and not audio.filename.endswith(
         (".wav", ".mp3", ".ogg", ".m4a", ".webm")
     ):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type: {audio.content_type}. Upload WAV or MP3."
-        )
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {audio.content_type}. Upload WAV or MP3.")
 
-    # ── Save uploaded file to disk ────────────────────────────────────────────
     file_id = uuid.uuid4().hex
     suffix = Path(audio.filename).suffix or ".wav"
     audio_path = UPLOAD_DIR / f"{file_id}{suffix}"
@@ -132,74 +187,61 @@ async def run_pipeline(
         contents = await audio.read()
         with open(audio_path, "wb") as f:
             f.write(contents)
-        print(f"📁 [UPLOAD] Saved audio to {audio_path} ({len(contents)} bytes)")
+        print(f"[UPLOAD] Saved {audio.filename} ({len(contents)} bytes)")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save audio file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save audio: {str(e)}")
 
-    # ── Initialize PipelineState ──────────────────────────────────────────────
     initial_state = PipelineState(
         audio_path=str(audio_path),
         source_language=language.lower().strip(),
         pipeline_status="running",
     )
 
-    # ── Run LangGraph pipeline ────────────────────────────────────────────────
     try:
-        print(f"\n{'='*60}")
-        print(f"🚀 Starting pipeline | language={language} | file={audio.filename}")
-        print(f"{'='*60}")
-
-        # Run pipeline synchronously in a thread pool to avoid blocking the event loop
-        final_state: PipelineState = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: pipeline.invoke(initial_state)
-        )
-
-        print(f"\n{'='*60}")
-        print(f"✅ Pipeline complete | status={final_state.get('pipeline_status', 'complete')}")
-        print(f"{'='*60}\n")
-
-        # Build response (LangGraph returns a dict, not PipelineState object)
-        return PipelineResponse(
-            pipeline_status=final_state.get("pipeline_status", "complete"),
-            raw_transcript=final_state.get("raw_transcript", ""),
-            source_language=final_state.get("source_language", language),
-            clinical_english=final_state.get("clinical_english", ""),
-            symptoms=final_state.get("symptoms", []),
-            duration=final_state.get("duration", ""),
-            severity=final_state.get("severity", 0),
-            missing_info=final_state.get("missing_info", []),
-            potential_conditions=final_state.get("potential_conditions", []),
-            urgency_level=final_state.get("urgency_level", 1),
-            recommended_tests=final_state.get("recommended_tests", []),
-            evidence_sources=final_state.get("evidence_sources", []),
-            is_urgent=final_state.get("is_urgent", False),
-            red_flags=final_state.get("red_flags", []),
-            drug_interactions=final_state.get("drug_interactions", []),
-            override_required=final_state.get("override_required", False),
-            referral_note_en=final_state.get("referral_note_en", ""),
-            referral_note_native=final_state.get("referral_note_native", ""),
-            error_message=final_state.get("error_message"),
-        )
-
+        return await _run_pipeline(initial_state, language, "PIPELINE-AUDIO")
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"❌ Pipeline error: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Pipeline execution failed: {str(e)}"
-        )
-
+        raise HTTPException(status_code=500, detail=f"Pipeline failed: {str(e)}")
     finally:
-        # Clean up uploaded file
         try:
             audio_path.unlink(missing_ok=True)
         except Exception:
             pass
 
 
+@app.post("/run-text", response_model=PipelineResponse, tags=["Pipeline"])
+async def run_text_pipeline(body: TextPipelineRequest):
+    """
+    Text pipeline — accepts JSON body, skips Whisper transcription.
+
+    Request (JSON):
+        { "text": "patient symptoms", "language": "urdu" }
+
+    TS mirror: TextPipelineRequest in pipeline.ts
+    Returns:   PipelineResponse (identical shape to /run-pipeline)
+    """
+    if not body.text or not body.text.strip():
+        raise HTTPException(status_code=400, detail="text field cannot be empty")
+
+    initial_state = PipelineState(
+        audio_path="",
+        raw_transcript=body.text.strip(),
+        source_language=body.language.lower().strip(),
+        pipeline_status="running",
+    )
+
+    try:
+        return await _run_pipeline(initial_state, body.language, "PIPELINE-TEXT")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Pipeline failed: {str(e)}")
+
+
 @app.get("/pipeline/status", tags=["Pipeline"])
 async def pipeline_status():
-    """Returns which agents are currently using real vs stub implementations."""
+    """Returns which agents are loaded vs stub."""
     stub_agents = []
     real_agents = []
     agent_names = ["localization_agent", "triage_agent", "specialist_agent", "safety_agent", "summary_agent"]

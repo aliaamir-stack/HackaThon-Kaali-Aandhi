@@ -11,7 +11,7 @@ import os
 
 from groq import Groq
 
-from pipeline.state import PipelineState
+from backend.pipeline.state import PipelineState
 
 logger = logging.getLogger(__name__)
 

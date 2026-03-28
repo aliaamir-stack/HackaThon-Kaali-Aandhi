@@ -26,8 +26,8 @@ def route_after_safety(state) -> str:
         urgency = getattr(state, "urgency_level", 1)
 
     if override:
-        print("🚨 [ROUTER] Safety override triggered — routing to URGENT summary")
+        print("[ROUTER] Safety override triggered -- routing to URGENT summary")
         return "urgent"
 
-    print(f"✅ [ROUTER] Normal routing to summary (urgency_level={urgency})")
+    print(f"[ROUTER] Normal routing to summary (urgency_level={urgency})")
     return "normal"

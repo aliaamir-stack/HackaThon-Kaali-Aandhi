@@ -6,20 +6,14 @@ Person D — Mikail (adapted by Person B for pipeline integration)
 """
 
 import os
-import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 
-# Ensure backend/ is on sys.path for local imports
-backend_dir = Path(__file__).parent.parent
-if str(backend_dir) not in sys.path:
-    sys.path.append(str(backend_dir))
-
-from tools.rag_retriever import retrieve_documents
-from prompts.specialist_prompt import SPECIALIST_SYSTEM_PROMPT
+from backend.tools.rag_retriever import retrieve_documents
+from backend.prompts.specialist_prompt import SPECIALIST_SYSTEM_PROMPT
 
 # Load env (in case this module is imported before main.py loads it)
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -48,7 +42,7 @@ def run_specialist_agent(state) -> dict:
     Returns:
         dict with: potential_conditions[], urgency_level, recommended_tests[], evidence_sources[]
     """
-    print("🔬 [Specialist Agent] Running...")
+    print("[Specialist Agent] Running...")
 
     # Extract fields from state (works with both dict and Pydantic)
     if isinstance(state, dict):
@@ -65,7 +59,7 @@ def run_specialist_agent(state) -> dict:
 
     # RAG retrieval
     query_for_rag = f"Guidance and protocols regarding: {symptoms_str}"
-    print(f"🔬 [Specialist Agent] RAG query: '{query_for_rag}'")
+    print(f"[Specialist Agent] RAG query: '{query_for_rag}'")
     retrieved_context = retrieve_documents(query_for_rag, k=3)
 
     # Build prompt
@@ -84,21 +78,27 @@ def run_specialist_agent(state) -> dict:
     ]
 
     # Call LLM
-    print("🔬 [Specialist Agent] Calling LLM...")
+    print("[Specialist Agent] Calling LLM...")
     try:
         llm = get_llm()
         response = llm.invoke(messages)
         assessment = response.content
-        print("🔬 [Specialist Agent] ✅ Assessment generated")
+        print("[Specialist Agent] OK Assessment generated")
     except Exception as e:
-        print(f"🔬 [Specialist Agent] ❌ LLM error: {e}")
+        print(f"[Specialist Agent] ERROR LLM error: {e}")
         assessment = f"[specialist_agent error: {e}]"
 
     # Parse the assessment into structured fields
     # Since Person D's LLM returns free-text, we wrap it as potential_conditions
+    # Map severity (0-10) to urgency_level (1-5)
+    if isinstance(severity, int):
+        urgency = max(1, min(5, (severity + 1) // 2))
+    else:
+        urgency = 2
+
     return {
         "potential_conditions": [assessment] if assessment else [],
-        "urgency_level": severity if isinstance(severity, int) else 2,
+        "urgency_level": urgency,
         "recommended_tests": [],
         "evidence_sources": [retrieved_context[:200] + "..."] if retrieved_context else [],
     }
